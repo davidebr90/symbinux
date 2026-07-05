@@ -12,6 +12,7 @@ the marked string later with ``_()``.
 from __future__ import annotations
 
 import gettext
+import locale
 import os
 from pathlib import Path
 
@@ -45,18 +46,44 @@ def _localedir() -> str | None:
     return None
 
 
+def _shipped_codes() -> set[str]:
+    """Language codes we actually ship a translation for (excludes auto/en)."""
+    return {code for code, _ in NATIVE_LANGUAGES if code not in ("auto", "en")}
+
+
+def system_language() -> str | None:
+    """Best guess at the desktop's preferred language as a 2-letter code."""
+    for var in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        value = os.environ.get(var)
+        if value:
+            code = value.split(":")[0].split(".")[0].split("_")[0].strip().lower()
+            if code and code not in ("c", "posix"):
+                return code
+    try:
+        loc = locale.getdefaultlocale()[0]
+    except Exception:
+        loc = None
+    return loc.split("_")[0].lower() if loc else None
+
+
 def set_language(code: str) -> None:
-    """Activate a language. ``"auto"`` follows the environment locale, ``"en"``
-    uses the source strings, any other code loads its compiled translation."""
+    """Activate a language.
+
+    ``"auto"`` picks the desktop's language if we ship a translation for it, and
+    otherwise falls back to English. ``"en"`` uses the source strings; any other
+    code loads its compiled translation.
+    """
     global _current
+    if code == "auto":
+        sys_lang = system_language()
+        code = sys_lang if sys_lang in _shipped_codes() else "en"
     if code == "en":
         _current = gettext.NullTranslations()
         return
-    languages = None if code == "auto" else [code]
     _current = gettext.translation(
         DOMAIN,
         localedir=_localedir(),
-        languages=languages,
+        languages=[code],
         fallback=True,
     )
 

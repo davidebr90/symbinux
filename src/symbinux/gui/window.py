@@ -116,13 +116,13 @@ class SymbinuxWindow(Adw.ApplicationWindow):
     def _build_header(self) -> Adw.HeaderBar:
         header = Adw.HeaderBar()
 
-        logo = _make_logo(24, Gtk.Align.START)
-        logo.set_margin_start(4)
-        self._logos.append(logo)
-        header.pack_start(logo)
+        # App name as bold uppercase text in the top-left; the large logo lives
+        # on the empty state.
+        name = Gtk.Label(label="SYMBINUX")
+        name.add_css_class("heading")
+        name.set_margin_start(6)
+        header.pack_start(name)
 
-        # The wordmark already carries the name; the header title shows only the
-        # version so the two do not duplicate each other.
         version = Gtk.Label(label=f"v{__version__}")
         version.add_css_class("dim-label")
         version.add_css_class("caption")

@@ -18,6 +18,10 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   UI (non blocca più l'interfaccia) con **spinner** durante l'attesa; aggiunto
   un pannello di progresso con **barra a percentuale reale** (guidata dagli step
   effettivi di un'operazione, mai animazioni finte).
+- In alto a sinistra ora c'è il nome "SYMBINUX" in maiuscolo grassetto (al posto
+  del logo piccolo); il logo grande resta nell'empty state.
+- All'avvio la lingua "Automatico" sceglie la lingua di sistema se ne è
+  disponibile una traduzione, altrimenti ripiega esplicitamente sull'inglese.
 
 ## [0.3.0] - 2026-07-05
 
