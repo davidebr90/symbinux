@@ -1,8 +1,10 @@
 # Roadmap
 
+*[Leggi in italiano](ROADMAP.it.md)*
+
 Status of the Symbinux stack and the planned path to broader phone support.
 
-## Done (v0.2.0)
+## Done (through v0.4.0)
 
 - **Protocol core (`symbinux-protocol`)** — FBUS/2 and MBUS v1 frame codecs with
   dual/single checksums, incremental frame reader, named command builders with
@@ -10,12 +12,15 @@ Status of the Symbinux stack and the planned path to broader phone support.
 - **Transport (`symbinux-transport`)** — serial (termios, 115200 8N1) backend,
   raw USB (libusb) backend skeleton, lsusb-style device enumeration, FBUS/2
   request/response exchange.
-- **CLI (`symbinux-fbus`)** — `devices`, `identify`, `getphonebook`, `netmon`,
-  `raw` (guarded). gnokii-style flags.
-- **GUI** — GTK4/libadwaita front-end: channel selector, capability-aware
-  (greyed) function buttons, contextual empty states, native desktop
-  notifications, advanced device view.
-- **Packaging** — Flatpak manifest, udev rules, `devices.json`.
+- **Device detection (`symbinux-devices`)** — cascade fingerprinting
+  (Nokia/Android/Apple iOS/unknown), `DeviceHandler` strategy with per-platform
+  capabilities, port-based tracking across AOA/iOS mode switches.
+- **CLI (`symbinux-fbus`)** — `devices`, `detect`, `identify`, `getphonebook`,
+  `netmon`, `raw` (guarded). gnokii-style flags.
+- **GUI** — GTK4/libadwaita: channel selector with real USB detection plus real
+  Bluetooth (BlueZ) and Wi-Fi (NetworkManager) scans, capability-aware function
+  buttons, real percentage progress, theme switcher, 7-language localisation.
+- **Packaging** — Flatpak manifest, per-category udev rules, `devices.json`.
 
 ## Near term
 
@@ -37,8 +42,8 @@ Status of the Symbinux stack and the planned path to broader phone support.
    `UsbTransport`.
 5. **BB5 phones** — endpoint auto-discovery over the PhoNet bulk interface;
    per-model interface/altsetting table in `devices.json`.
-6. **Bluetooth channel** — FBUS/MBUS over RFCOMM via BlueZ (`org.bluez` D-Bus),
-   wiring the GUI's Bluetooth channel to a real scan.
+6. **Bluetooth phone comms** — the Bluetooth channel already discovers devices;
+   next is FBUS/MBUS (or OBEX) over RFCOMM via BlueZ to actually talk to a phone.
 
 ## Explicitly out of scope
 

@@ -304,16 +304,27 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         self._update_function_sensitivity()
         self._clear_device_list()
 
-        if self._channel != "usb":
-            self._progress.finish()
-            self._show_empty(
-                title=_("%s scanning not available yet") % channel_label(self._channel),
-                description=_("This channel is on the roadmap. USB is fully supported today."),
+        if self._channel == "bluetooth":
+            self._scan_wireless(
+                backend.scan_bluetooth,
+                self._bluetooth_row,
+                _("Scanning Bluetooth…"),
+                _("No Bluetooth devices found"),
+                _("Make sure Bluetooth is on and nearby devices are discoverable."),
+            )
+            return
+        if self._channel == "wifi":
+            self._scan_wireless(
+                backend.scan_wifi,
+                self._wifi_row,
+                _("Scanning Wi-Fi…"),
+                _("No Wi-Fi networks found"),
+                _("No wireless networks are in range."),
             )
             return
 
-        # Real progress: the bar advances as the detection cascade completes
-        # actual steps (reported by the core), not on a timer.
+        # USB: staged detection with a real percentage bar (the bar advances as
+        # the cascade completes actual steps reported by the core, not on a timer).
         self._progress.determinate(_("Detecting devices…"))
 
         def on_progress(fraction, _stage):
@@ -353,6 +364,43 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             row.device = phone  # type: ignore[attr-defined]
             self._device_list_box.append(row)
         self._device_stack.set_visible_child_name("list")
+
+    def _scan_wireless(self, scan_fn, row_builder, busy: str, empty_title: str, empty_desc: str) -> None:
+        """Run a real Bluetooth/Wi-Fi scan off the UI thread with a spinner."""
+        self._progress.indeterminate(busy)
+
+        def work():
+            return scan_fn()
+
+        def done(items):
+            self._progress.finish()
+            if not items:
+                self._show_empty(title=empty_title, description=empty_desc)
+                return
+            for item in items:
+                self._device_list_box.append(row_builder(item))
+            self._device_stack.set_visible_child_name("list")
+
+        def failed(exc):
+            self._progress.finish()
+            self._show_empty(title=empty_title, description=str(exc))
+
+        run_async(work, done, failed)
+
+    def _bluetooth_row(self, device) -> Adw.ActionRow:
+        subtitle = device.address
+        if device.paired:
+            subtitle += " · " + _("paired")
+        row = Adw.ActionRow(title=device.name or device.address, subtitle=subtitle)
+        row.add_prefix(Gtk.Image.new_from_icon_name("bluetooth-symbolic"))
+        return row
+
+    def _wifi_row(self, network) -> Adw.ActionRow:
+        row = Adw.ActionRow(
+            title=network.ssid, subtitle=f"{network.signal}% · {network.security}"
+        )
+        row.add_prefix(Gtk.Image.new_from_icon_name("network-wireless-symbolic"))
+        return row
 
     def _clear_device_list(self) -> None:
         child = self._device_list_box.get_first_child()
@@ -395,11 +443,4 @@ def label_for(key: str) -> str:
     for k, label, _icon, _tt, _cap in FUNCTIONS:
         if k == key:
             return _(label)
-    return key
-
-
-def channel_label(key: str) -> str:
-    for k, label, _icon in CHANNELS:
-        if k == key:
-            return label
     return key

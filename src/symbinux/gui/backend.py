@@ -9,6 +9,7 @@ functions raise `BackendUnavailable` so the UI can degrade gracefully.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -44,6 +45,20 @@ class DetectedPhone:
 
     def has_capability(self, cap: str) -> bool:
         return cap in self.capabilities
+
+
+@dataclass(frozen=True)
+class BluetoothDevice:
+    address: str
+    name: str
+    paired: bool
+
+
+@dataclass(frozen=True)
+class WifiNetwork:
+    ssid: str
+    signal: str
+    security: str
 
 
 def _find_binary() -> str:
@@ -177,3 +192,79 @@ def detect_devices(progress_cb=None, timeout: float = 15.0) -> list[DetectedPhon
     except subprocess.TimeoutExpired:
         proc.kill()
     return phones
+
+
+def scan_bluetooth(duration: int = 8) -> list[BluetoothDevice]:
+    """Discover Bluetooth devices via BlueZ (`bluetoothctl`).
+
+    Runs a real timed inquiry, then lists known devices, marking paired ones.
+    Raises `BackendUnavailable` if BlueZ or an adapter is missing — never a fake
+    result.
+    """
+    if not shutil.which("bluetoothctl"):
+        raise BackendUnavailable("bluetoothctl not found — install BlueZ (bluez).")
+
+    def _bctl(args: list[str], timeout: float):
+        return subprocess.run(
+            ["bluetoothctl", *args], capture_output=True, text=True, timeout=timeout
+        )
+
+    try:
+        show = _bctl(["show"], timeout=6)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BackendUnavailable(str(exc)) from exc
+    if "No default controller" in (show.stdout + show.stderr) or show.returncode != 0:
+        raise BackendUnavailable("No Bluetooth adapter available.")
+
+    try:
+        # A timed active inquiry (blocks for `duration` seconds).
+        _bctl(["--timeout", str(duration), "scan", "on"], timeout=duration + 5)
+        devices_out = _bctl(["devices"], timeout=6).stdout
+        paired_out = _bctl(["paired-devices"], timeout=6).stdout
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BackendUnavailable(str(exc)) from exc
+
+    paired = {line.split()[1] for line in paired_out.splitlines() if line.startswith("Device ")}
+    devices: list[BluetoothDevice] = []
+    for line in devices_out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) >= 3 and parts[0] == "Device":
+            address = parts[1]
+            devices.append(BluetoothDevice(address=address, name=parts[2], paired=address in paired))
+    return devices
+
+
+def scan_wifi(timeout: float = 20.0) -> list[WifiNetwork]:
+    """Scan for Wi-Fi networks via NetworkManager (`nmcli`).
+
+    Raises `BackendUnavailable` if nmcli is missing or the scan fails.
+    """
+    if not shutil.which("nmcli"):
+        raise BackendUnavailable("nmcli not found — install NetworkManager.")
+    try:
+        result = subprocess.run(
+            ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "yes"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BackendUnavailable(str(exc)) from exc
+    if result.returncode != 0:
+        raise BackendUnavailable(result.stderr.strip() or "Wi-Fi scan failed.")
+
+    networks: list[WifiNetwork] = []
+    seen: set[str] = set()
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        # nmcli -t escapes ':' inside fields as '\:'; split on unescaped colons.
+        fields = [f.replace("\\:", ":").replace("\\\\", "\\") for f in re.split(r"(?<!\\):", line)]
+        if len(fields) < 3:
+            continue
+        ssid = fields[0] or "(hidden)"
+        if ssid in seen:
+            continue
+        seen.add(ssid)
+        networks.append(WifiNetwork(ssid=ssid, signal=fields[1], security=fields[2] or "open"))
+    return networks

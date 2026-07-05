@@ -1,4 +1,5 @@
 # Logo
 
-Cartella per i loghi ufficiali del progetto (versione sfondo bianco e
-versione sfondo nero). File da aggiungere.
+Official project logos: a solid-background pair (white / black) and two
+transparent-background variants derived from them (for light / dark backgrounds).
+The application picks the light or dark variant to match the active theme.

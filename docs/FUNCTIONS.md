@@ -1,19 +1,21 @@
 # Functions reference
 
+*[Leggi in italiano](FUNCTIONS.it.md)*
+
 What Symbinux can do today, across the GUI and the `symbinux-fbus` CLI. Each
 function lists the icon used in the GUI, what it needs to be enabled, and its
 safety class (see `docs/PROTOCOL_NOTES.md` §6).
 
 ## Connection channels (GUI)
 
-The channel selector picks how Symbinux looks for a phone. Each channel has its
-own contextual state rather than a single generic "nothing found" message.
+The channel selector picks how Symbinux looks for a phone. Each channel runs a
+real scan with a spinner and an honest empty/error state — never a fake loader.
 
-| Channel | Icon | Status |
+| Channel | Icon | Behaviour |
 |---|---|---|
-| USB | `drive-harddisk-usb-symbolic` | **Supported.** Enumerates phones and cable bridges; serial FBUS/2 I/O. |
-| Bluetooth | `bluetooth-symbolic` | Roadmap. Selectable; shows a "not available yet" state. |
-| Wi-Fi | `network-wireless-symbolic` | Roadmap. Selectable; shows a "not available yet" state. |
+| USB | `drive-harddisk-usb-symbolic` | Multi-platform device detection + serial FBUS/2 I/O (Nokia). |
+| Bluetooth | `bluetooth-symbolic` | Real device inquiry via BlueZ (`bluetoothctl`); needs an adapter. |
+| Wi-Fi | `network-wireless-symbolic` | Real network scan via NetworkManager (`nmcli`). |
 
 ## Phone functions (GUI)
 
@@ -47,6 +49,7 @@ unrecognised cables. It performs no phone I/O.
 | Command | Purpose | Safety |
 |---|---|---|
 | `devices [--all]` | Advanced device enumeration. Without `--all`, shows only phones and known cable bridges. | Confirmed |
+| `detect [--progress]` | Auto-detect a connected phone's platform and capabilities. | Confirmed |
 | `identify --port <p>` | HW/SW version query over a serial cable. | Confirmed |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Read a phonebook entry. | Confirmed |
 | `netmon --port <p> [--screen <n>]` | Netmonitor screen / control. | Confirmed |

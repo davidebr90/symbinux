@@ -1,5 +1,7 @@
 # Setup & unprivileged access
 
+*[Leggi in italiano](SETUP.it.md)*
+
 Symbinux is meant to run **without `sudo`** in normal use. The only privileged
 step is installing a udev rule once, so your user can open the phone's USB device
 and its serial port.
@@ -14,12 +16,15 @@ cargo build --release
 
 Runtime dependencies (Debian/Ubuntu): `libusb-1.0-0`, and for a cable that
 exposes a serial port the in-kernel `ftdi_sio` / `cp210x` / `pl2303` drivers
-(present by default).
+(present by default). Optional, for the wireless channels: `bluez` (Bluetooth
+scan) and `network-manager` (Wi-Fi scan); iOS support additionally needs the
+`usbmuxd` daemon (see `udev/README.md`).
 
-## 2. Install the udev rule
+## 2. Install the udev rules
 
 ```bash
-sudo cp udev/69-nokia-legacy.rules /etc/udev/rules.d/
+# Nokia (always) and Android (if you use the Android channel):
+sudo cp udev/69-nokia-legacy.rules udev/51-android.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 

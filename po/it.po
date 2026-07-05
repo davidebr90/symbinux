@@ -4,10 +4,8 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Symbinux 0.2.0\n"
+"Project-Id-Version: Symbinux 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/davidebr90/symbinux/issues\n"
-"PO-Revision-Date: 2026-07-05 20:00+0200\n"
-"Last-Translator: Davide Pica\n"
 "Language-Team: Italian\n"
 "Language: it\n"
 "MIME-Version: 1.0\n"
@@ -72,12 +70,26 @@ msgstr "Collega via cavo seriale (/dev/ttyUSB*) per leggere l'identità del tele
 msgid "This function is not wired up yet on this channel."
 msgstr "Questa funzione non è ancora disponibile su questo canale."
 
-#, python-format
-msgid "%s scanning not available yet"
-msgstr "Scansione %s non ancora disponibile"
+msgid "Scanning Bluetooth…"
+msgstr "Scansione Bluetooth…"
 
-msgid "This channel is on the roadmap. USB is fully supported today."
-msgstr "Questo canale è in roadmap. USB è pienamente supportato oggi."
+msgid "No Bluetooth devices found"
+msgstr "Nessun dispositivo Bluetooth trovato"
+
+msgid "Make sure Bluetooth is on and nearby devices are discoverable."
+msgstr "Assicurati che il Bluetooth sia attivo e i dispositivi vicini siano rilevabili."
+
+msgid "Scanning Wi-Fi…"
+msgstr "Scansione Wi-Fi…"
+
+msgid "No Wi-Fi networks found"
+msgstr "Nessuna rete Wi-Fi trovata"
+
+msgid "No wireless networks are in range."
+msgstr "Nessuna rete wireless a portata."
+
+msgid "Detecting devices…"
+msgstr "Rilevamento dispositivi…"
 
 msgid "Core not available"
 msgstr "Core non disponibile"
@@ -85,21 +97,23 @@ msgstr "Core non disponibile"
 msgid "No phone or cable detected"
 msgstr "Nessun telefono o cavo rilevato"
 
-msgid ""
-"Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh "
-"button. Use Advanced to inspect every USB device."
-msgstr ""
-"Collega un telefono Nokia con un cavo DKU-2/CA-42, poi premi il pulsante di "
-"aggiornamento. Usa Avanzate per ispezionare ogni dispositivo USB."
+msgid "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh button. Use Advanced to inspect every USB device."
+msgstr "Collega un telefono Nokia con un cavo DKU-2/CA-42, poi premi il pulsante di aggiornamento. Usa Avanzate per ispezionare ogni dispositivo USB."
 
-msgid "Advanced diagnostics"
-msgstr "Diagnostica avanzata"
+msgid "paired"
+msgstr "associato"
+
+msgid "Scanning USB…"
+msgstr "Scansione USB…"
 
 msgid "No USB devices visible to the host."
 msgstr "Nessun dispositivo USB visibile all'host."
 
 msgid "Connected USB devices"
 msgstr "Dispositivi USB collegati"
+
+msgid "Advanced diagnostics"
+msgstr "Diagnostica avanzata"
 
 msgid "Close"
 msgstr "Chiudi"

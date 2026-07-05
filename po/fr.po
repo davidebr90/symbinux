@@ -4,9 +4,8 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Symbinux 0.3.0\n"
+"Project-Id-Version: Symbinux 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/davidebr90/symbinux/issues\n"
-"PO-Revision-Date: 2026-07-05 20:30+0200\n"
 "Language-Team: French\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
@@ -71,12 +70,26 @@ msgstr "Connectez-vous via un câble série (/dev/ttyUSB*) pour lire l'identité
 msgid "This function is not wired up yet on this channel."
 msgstr "Cette fonction n'est pas encore disponible sur ce canal."
 
-#, python-format
-msgid "%s scanning not available yet"
-msgstr "Analyse %s pas encore disponible"
+msgid "Scanning Bluetooth…"
+msgstr "Analyse Bluetooth…"
 
-msgid "This channel is on the roadmap. USB is fully supported today."
-msgstr "Ce canal est prévu dans la feuille de route. L'USB est entièrement pris en charge aujourd'hui."
+msgid "No Bluetooth devices found"
+msgstr "Aucun périphérique Bluetooth trouvé"
+
+msgid "Make sure Bluetooth is on and nearby devices are discoverable."
+msgstr "Assurez-vous que le Bluetooth est activé et que les appareils à proximité sont détectables."
+
+msgid "Scanning Wi-Fi…"
+msgstr "Analyse Wi-Fi…"
+
+msgid "No Wi-Fi networks found"
+msgstr "Aucun réseau Wi-Fi trouvé"
+
+msgid "No wireless networks are in range."
+msgstr "Aucun réseau sans fil à portée."
+
+msgid "Detecting devices…"
+msgstr "Détection des appareils…"
 
 msgid "Core not available"
 msgstr "Cœur non disponible"
@@ -87,14 +100,20 @@ msgstr "Aucun téléphone ou câble détecté"
 msgid "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh button. Use Advanced to inspect every USB device."
 msgstr "Connectez un téléphone Nokia avec un câble DKU-2/CA-42, puis appuyez sur le bouton d'actualisation. Utilisez Avancé pour inspecter tous les périphériques USB."
 
-msgid "Advanced diagnostics"
-msgstr "Diagnostic avancé"
+msgid "paired"
+msgstr "appairé"
+
+msgid "Scanning USB…"
+msgstr "Analyse USB…"
 
 msgid "No USB devices visible to the host."
 msgstr "Aucun périphérique USB visible pour l'hôte."
 
 msgid "Connected USB devices"
 msgstr "Périphériques USB connectés"
+
+msgid "Advanced diagnostics"
+msgstr "Diagnostic avancé"
 
 msgid "Close"
 msgstr "Fermer"
