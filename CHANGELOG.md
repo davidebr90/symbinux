@@ -7,6 +7,18 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 
 ## [Unreleased]
 
+### Modificato
+- **Revisione UX/UI della GUI**: dimensione minima della finestra imposta
+  (720×600, default 860×680) così il contenuto non è mai compresso; logo più
+  grande e ben proporzionato (wordmark compatto in header + logo grande
+  nell'empty state, entrambi si adattano al tema); pulsanti-funzione in un
+  `Adw.WrapBox` con spaziatura corretta che va a capo su finestre strette;
+  versione mostrata senza duplicare il nome.
+- **Feedback di attesa onesto**: scansione USB spostata fuori dal thread della
+  UI (non blocca più l'interfaccia) con **spinner** durante l'attesa; aggiunto
+  un pannello di progresso con **barra a percentuale reale** (guidata dagli step
+  effettivi di un'operazione, mai animazioni finte).
+
 ## [0.3.0] - 2026-07-05
 
 ### Aggiunto

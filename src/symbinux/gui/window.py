@@ -1,14 +1,17 @@
 """Main application window (GTK4 + libadwaita).
 
 Layout goals:
-- The logo and version are always visible (header bar + About dialog); the logo
-  swaps between its light/dark variants with the active colour scheme.
-- A channel selector (USB / Bluetooth / Wi-Fi) lets the user pick how to look for
-  phones; each channel has its own contextual empty state.
-- Function buttons carry an icon and stay disabled ("greyed out") until a usable
-  device is selected, so capabilities are visible even with nothing connected.
-- Appearance (Automatic/Light/Dark) and Language are chosen from the menu.
-- Actions surface results through native desktop notifications (see main.py).
+- The logo is prominent (large on the empty state, a wordmark in the header) and
+  swaps between its light/dark variants with the active colour scheme; the
+  version is always shown.
+- A minimum window size keeps every element comfortably spaced; the action bar
+  wraps gracefully on narrow widths.
+- A channel selector (USB / Bluetooth / Wi-Fi) with a contextual empty state per
+  channel.
+- Function buttons carry an icon and stay disabled until a usable device is
+  selected.
+- Long operations show honest feedback: a spinner while scanning, and a real
+  progress bar (driven by actual completed steps) for staged operations.
 """
 
 from __future__ import annotations
@@ -17,22 +20,21 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("GdkPixbuf", "2.0")
 
-from gi.repository import Adw, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, GdkPixbuf, Gio, Gtk  # noqa: E402
 
 from symbinux import __version__
 from symbinux.gui import backend, theme
 from symbinux.gui.i18n import N_, NATIVE_LANGUAGES, _
+from symbinux.gui.widgets import ProgressPanel, run_async
 
-# Channels the user can scan on. Labels are product names, left untranslated.
 CHANNELS = [
     ("usb", "USB", "drive-harddisk-usb-symbolic"),
     ("bluetooth", "Bluetooth", "bluetooth-symbolic"),
     ("wifi", "Wi-Fi", "network-wireless-symbolic"),
 ]
 
-# Every phone function: key, source label, icon, source tooltip. Labels/tooltips
-# are marked with N_() for extraction and translated at build time with _().
 FUNCTIONS = [
     ("identify", N_("Identify"), "dialog-information-symbolic", N_("Read model, IMEI and firmware")),
     ("phonebook", N_("Phonebook"), "contact-new-symbolic", N_("Import / export contacts")),
@@ -42,17 +44,43 @@ FUNCTIONS = [
 ]
 
 
+def _make_logo(height: int, halign: Gtk.Align) -> Gtk.Picture:
+    # A Gtk.Picture bound to a texture pre-scaled to the target height, so its
+    # natural size is exactly what we want (Picture otherwise expands to the
+    # image's full intrinsic size). The texture is set later by _apply_logo,
+    # which also rescales it on theme change.
+    picture = Gtk.Picture()
+    picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+    picture.set_can_shrink(True)
+    picture.set_hexpand(False)
+    picture.set_vexpand(False)
+    picture.set_halign(halign)
+    picture.set_valign(Gtk.Align.CENTER)
+    picture._logo_height = height  # type: ignore[attr-defined]
+    return picture
+
+
+def _scaled_texture(path: str, height: int) -> Gdk.Texture | None:
+    try:
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, -1, height, True)
+        return Gdk.Texture.new_for_pixbuf(pixbuf)
+    except Exception:
+        return None
+
+
 class SymbinuxWindow(Adw.ApplicationWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.set_title("Symbinux")
-        self.set_default_size(560, 460)
+        self.set_default_size(860, 680)
+        # Enforce a minimum size so content is never cramped.
+        self.set_size_request(720, 600)
 
         self._channel = "usb"
         self._selected_device: backend.Device | None = None
         self._function_buttons: dict[str, Gtk.Button] = {}
         self._setting_up = True
-        self._header_logo: Gtk.Image | None = None
+        self._logos: list[Gtk.Picture] = []
 
         toolbar_view = Adw.ToolbarView()
         self.set_content(toolbar_view)
@@ -62,17 +90,19 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         self._content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         toolbar_view.set_content(self._content_box)
 
+        self._progress = ProgressPanel()
+        self._content_box.append(self._progress)
+
         self._device_stack = Gtk.Stack()
         self._device_stack.set_vexpand(True)
+        self._device_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self._content_box.append(self._device_stack)
-        self._status_page = self._build_status_page()
+        self._device_stack.add_named(self._build_empty_state(), "empty")
         self._build_device_list()
-        self._device_stack.add_named(self._status_page, "empty")
         self._device_stack.add_named(self._device_list_scroller, "list")
 
         self._content_box.append(self._build_action_bar())
 
-        # React to colour-scheme changes (system or manual) to swap the logo.
         self._style_manager = Adw.StyleManager.get_default()
         self._style_manager.connect("notify::dark", self._on_dark_changed)
         self._apply_logo(self._style_manager.get_dark())
@@ -86,11 +116,17 @@ class SymbinuxWindow(Adw.ApplicationWindow):
     def _build_header(self) -> Adw.HeaderBar:
         header = Adw.HeaderBar()
 
-        self._header_logo = Gtk.Image()
-        self._header_logo.set_pixel_size(24)
-        header.pack_start(self._header_logo)
+        logo = _make_logo(24, Gtk.Align.START)
+        logo.set_margin_start(4)
+        self._logos.append(logo)
+        header.pack_start(logo)
 
-        header.set_title_widget(Adw.WindowTitle(title="Symbinux", subtitle=f"v{__version__}"))
+        # The wordmark already carries the name; the header title shows only the
+        # version so the two do not duplicate each other.
+        version = Gtk.Label(label=f"v{__version__}")
+        version.add_css_class("dim-label")
+        version.add_css_class("caption")
+        header.set_title_widget(version)
 
         refresh = Gtk.Button(icon_name="view-refresh-symbolic")
         refresh.set_tooltip_text(_("Rescan the selected channel"))
@@ -123,13 +159,15 @@ class SymbinuxWindow(Adw.ApplicationWindow):
     def _build_channel_bar(self) -> Gtk.Box:
         bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         bar.set_halign(Gtk.Align.CENTER)
-        bar.set_margin_top(8)
-        bar.set_margin_bottom(8)
+        bar.set_margin_top(10)
+        bar.set_margin_bottom(10)
 
         first_button: Gtk.ToggleButton | None = None
         for key, label, icon in CHANNELS:
             btn = Gtk.ToggleButton()
-            inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            inner.set_margin_start(4)
+            inner.set_margin_end(4)
             inner.append(Gtk.Image.new_from_icon_name(icon))
             inner.append(Gtk.Label(label=label))
             btn.set_child(inner)
@@ -144,50 +182,73 @@ class SymbinuxWindow(Adw.ApplicationWindow):
                 self._usb_toggle = btn
         return bar
 
-    def _build_status_page(self) -> Adw.StatusPage:
-        page = Adw.StatusPage()
-        page.set_vexpand(True)
-        page.set_icon_name("phone-symbolic")
-        return page
+    def _build_empty_state(self) -> Gtk.Box:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_vexpand(True)
+        for side in ("start", "end", "top", "bottom"):
+            getattr(box, f"set_margin_{side}")(24)
+
+        logo = _make_logo(120, Gtk.Align.CENTER)
+        self._logos.append(logo)
+        box.append(logo)
+
+        self._empty_title = Gtk.Label()
+        self._empty_title.add_css_class("title-1")
+        self._empty_title.set_wrap(True)
+        self._empty_title.set_justify(Gtk.Justification.CENTER)
+        box.append(self._empty_title)
+
+        self._empty_desc = Gtk.Label()
+        self._empty_desc.add_css_class("dim-label")
+        self._empty_desc.set_wrap(True)
+        self._empty_desc.set_justify(Gtk.Justification.CENTER)
+        self._empty_desc.set_max_width_chars(52)
+        box.append(self._empty_desc)
+
+        return box
 
     def _build_device_list(self) -> None:
         self._device_list_box = Gtk.ListBox()
         self._device_list_box.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self._device_list_box.add_css_class("boxed-list")
+        self._device_list_box.set_valign(Gtk.Align.START)
         self._device_list_box.connect("row-selected", self._on_device_selected)
 
         self._device_list_scroller = Gtk.ScrolledWindow()
         self._device_list_scroller.set_child(self._device_list_box)
         for m in ("top", "bottom", "start", "end"):
-            getattr(self._device_list_scroller, f"set_margin_{m}")(12)
+            getattr(self._device_list_scroller, f"set_margin_{m}")(18)
 
-    def _build_action_bar(self) -> Gtk.Box:
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        bar.set_halign(Gtk.Align.CENTER)
-        for m in ("top", "bottom"):
-            getattr(bar, f"set_margin_{m}")(10)
+    def _build_action_bar(self) -> Gtk.Widget:
+        wrap = Adw.WrapBox()
+        wrap.set_child_spacing(8)
+        wrap.set_line_spacing(8)
+        wrap.set_halign(Gtk.Align.CENTER)
+        wrap.set_justify(Adw.JustifyMode.NONE)
+        for side in ("start", "end", "top", "bottom"):
+            getattr(wrap, f"set_margin_{side}")(12)
 
         for key, label, icon, tooltip in FUNCTIONS:
             btn = Gtk.Button()
             btn.set_child(Adw.ButtonContent(label=_(label), icon_name=icon))
             btn.set_tooltip_text(_(tooltip))
-            btn.set_sensitive(False)  # greyed until a usable device is selected
+            btn.set_sensitive(False)
             btn.connect("clicked", self._on_function_clicked, key)
             self._function_buttons[key] = btn
-            bar.append(btn)
-        return bar
+            wrap.append(btn)
+        return wrap
 
     # --- behaviour --------------------------------------------------------
 
     def _apply_logo(self, dark: bool) -> None:
         path = theme.logo_path(dark)
-        if self._header_logo is not None and path is not None:
-            self._header_logo.set_from_file(str(path))
-        if path is not None:
-            image = Gtk.Image.new_from_file(str(path))
-            paintable = image.get_paintable()
-            if paintable is not None:
-                self._status_page.set_paintable(paintable)
+        if path is None:
+            return
+        for picture in self._logos:
+            texture = _scaled_texture(str(path), picture._logo_height)  # type: ignore[attr-defined]
+            if texture is not None:
+                picture.set_paintable(texture)
 
     def _on_dark_changed(self, _manager, _param) -> None:
         self._apply_logo(self._style_manager.get_dark())
@@ -226,28 +287,35 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             button.set_sensitive(True if key == "advanced" else has_phone)
 
     def refresh(self) -> None:
-        """Rescan the active channel and rebuild the device list / empty state."""
+        """Rescan the active channel (off the UI thread) and rebuild the view."""
         self._selected_device = None
         self._update_function_sensitivity()
-
-        child = self._device_list_box.get_first_child()
-        while child is not None:
-            self._device_list_box.remove(child)
-            child = self._device_list_box.get_first_child()
+        self._clear_device_list()
 
         if self._channel != "usb":
+            self._progress.finish()
             self._show_empty(
                 title=_("%s scanning not available yet") % channel_label(self._channel),
                 description=_("This channel is on the roadmap. USB is fully supported today."),
             )
             return
 
-        try:
-            devices = [d for d in backend.list_usb_devices() if d.is_phone or "cable" in d.role]
-        except backend.BackendUnavailable as exc:
-            self._show_empty(title=_("Core not available"), description=str(exc))
-            return
+        self._progress.indeterminate(_("Scanning USB…"))
 
+        def work():
+            return backend.list_usb_devices()
+
+        def done(devices):
+            self._progress.finish()
+            self._populate([d for d in devices if d.is_phone or "cable" in d.role])
+
+        def failed(exc):
+            self._progress.finish()
+            self._show_empty(title=_("Core not available"), description=str(exc))
+
+        run_async(work, done, failed)
+
+    def _populate(self, devices) -> None:
         if not devices:
             self._show_empty(
                 title=_("No phone or cable detected"),
@@ -257,7 +325,6 @@ class SymbinuxWindow(Adw.ApplicationWindow):
                 ),
             )
             return
-
         for device in devices:
             row = Adw.ActionRow(title=device.name, subtitle=f"{device.vid_pid} · {device.role}")
             row.add_prefix(Gtk.Image.new_from_icon_name("phone-symbolic"))
@@ -265,22 +332,36 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             self._device_list_box.append(row)
         self._device_stack.set_visible_child_name("list")
 
+    def _clear_device_list(self) -> None:
+        child = self._device_list_box.get_first_child()
+        while child is not None:
+            self._device_list_box.remove(child)
+            child = self._device_list_box.get_first_child()
+
     def _show_empty(self, title: str, description: str) -> None:
-        self._status_page.set_title(title)
-        self._status_page.set_description(description)
+        self._empty_title.set_text(title)
+        self._empty_desc.set_text(description)
         self._device_stack.set_visible_child_name("empty")
 
     def _show_advanced(self) -> None:
-        try:
-            devices = backend.list_usb_devices(include_all=True)
-        except backend.BackendUnavailable as exc:
+        self._progress.indeterminate(_("Scanning USB…"))
+
+        def work():
+            return backend.list_usb_devices(include_all=True)
+
+        def done(devices):
+            self._progress.finish()
+            if not devices:
+                body = _("No USB devices visible to the host.")
+            else:
+                body = "\n".join(f"{d.bus_addr}  {d.vid_pid}  {d.name}  [{d.role}]" for d in devices)
+            self._present_text_dialog(_("Connected USB devices"), body)
+
+        def failed(exc):
+            self._progress.finish()
             self._present_text_dialog(_("Advanced diagnostics"), str(exc))
-            return
-        if not devices:
-            body = _("No USB devices visible to the host.")
-        else:
-            body = "\n".join(f"{d.bus_addr}  {d.vid_pid}  {d.name}  [{d.role}]" for d in devices)
-        self._present_text_dialog(_("Connected USB devices"), body)
+
+        run_async(work, done, failed)
 
     def _present_text_dialog(self, heading: str, body: str) -> None:
         dialog = Adw.MessageDialog(transient_for=self, heading=heading, body=body)
