@@ -21,29 +21,54 @@ Status of the Symbinux stack and the planned path to broader phone support.
   Bluetooth (BlueZ) and Wi-Fi (NetworkManager) scans, capability-aware function
   buttons, real percentage progress, theme switcher, 7-language localisation.
 - **Packaging** — Flatpak manifest, per-category udev rules, `devices.json`.
+- **Typed decoding (started)** — `symbinux-protocol::decode` turns the HW/SW
+  version reply into a struct (validated against the real 3310 capture); stable
+  `--json` output on `devices`/`detect`; structured logging (`RUST_LOG`).
 
-## Near term
+The backlog below is prioritised from a multi-project review; see
+`docs/COMPARISON.md` for prior art and `docs/CROSS_PLATFORM.md` for portability.
 
-1. **FBUS/2 command coverage** — wire `identify` end-to-end response parsing
-   (model/IMEI/firmware struct), phonebook read → structured contacts, vCard
-   import/export. Currently the framing is complete; the response decoders are
-   partial.
-2. **MBUS v1 on hardware** — validate the synthetic codec against a real phone,
-   add the half-duplex echo-drain to the exchange loop, replace the synthetic
-   fixture with a real capture.
-3. **Retransmission window** — configurable ACK timeout (200–500 ms) and retry
-   for FBUS/2, per the gnokii sequence-number scheme.
+## Near term (P0/P1)
+
+1. **Wire the GUI functions end-to-end.** The Identify/Phonebook/SMS/Netmonitor
+   buttons don't yet call the core — they need a **serial-port resolver** that
+   maps a detected USB device (`PortKey`/VID:PID) to a `/dev/ttyUSB*` path, then
+   the GUI can run `identify` and show the decoded result. This port-resolution
+   step is the current blocker for every real phone operation from the GUI.
+2. **Typed decoding → PIM formats.** Extend `decode` to phonebook entries
+   (→ vCard `.vcf`) and SMS PDU (7-bit/UCS2, 3GPP TS 23.040), then add `--json`
+   to every command. Unblocks contacts and SMS features.
+3. **SMS list/read/send end-to-end** and **phonebook read/write** wired through
+   CLI + GUI, with an explicit confirmation gate for `Experimental` writes.
+4. **Multi-frame reassembly** in `exchange_fbus2` (handle `FramesToGo > 1`
+   fragmented replies) and a **retransmission window** (configurable ACK timeout
+   200–500 ms + retry per the gnokii sequence scheme).
+5. **MBUS v1 on hardware** — call `drain_echo` in an MBUS exchange loop, validate
+   against a real phone, replace the synthetic fixture with a real capture.
+6. **Robustness** — differentiate GUI errors (missing binary vs permission vs
+   timeout vs no device) with actionable text; add a fuzz/property test for
+   `Fbus2Reader`; cancellation for long scans.
 
 ## Medium term
 
-4. **FBUS/2 over raw USB (DKU-2 native)** — select the alternate USB
-   configuration/interface that exposes the two FBUS bulk endpoints (the default
-   config emulates an AT modem), then reuse the existing framing over
-   `UsbTransport`.
-5. **BB5 phones** — endpoint auto-discovery over the PhoNet bulk interface;
-   per-model interface/altsetting table in `devices.json`.
-6. **Bluetooth phone comms** — the Bluetooth channel already discovers devices;
-   next is FBUS/MBUS (or OBEX) over RFCOMM via BlueZ to actually talk to a phone.
+7. **Backup/restore bundle** — one command dumping phonebook + SMS (+ calendar)
+   to `.vcf`/`.ics`/`.json`; add `Capability::Backup` to the Nokia handler.
+8. **Call log, calendar/todo, ringtones, logos** — reuse the `0x03`/security
+   framing generalised (gnokii/gammu wire these on the same families).
+9. **Bluetooth phone comms** — PBAP (contacts) and MAP (SMS) over Bluetooth via
+   BlueZ `obexd` D-Bus, to reach cable-dead Nokias (see `docs/COMPARISON.md`).
+10. **FBUS/2 over raw USB (DKU-2 native)** and **BB5** — auto-discover the FBUS
+    bulk endpoints / PhoNet interface; per-model table in `devices.json`.
+
+## Infrastructure & cross-platform
+
+11. **CLI on Windows/macOS** — the core is already portable; ship
+    `symbinux-fbus` cross-platform, optionally migrating USB to `nusb` to drop
+    the libusb dependency. See `docs/CROSS_PLATFORM.md`.
+12. **D-Bus service** (zbus) exposing device state + hotplug events to the GUI
+    and other apps, KDE-Connect style — replaces subprocess scraping long-term.
+13. **Android/iOS transfer** — embed `adb_client` (Rust) and `idevice` (Rust)
+    rather than shelling out, when the product scope expands.
 
 ## Explicitly out of scope
 

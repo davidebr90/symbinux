@@ -50,8 +50,8 @@ id grezzi anche per cavi non riconosciuti. Non esegue I/O col telefono.
 
 | Comando | Scopo | Sicurezza |
 |---|---|---|
-| `devices [--all]` | Enumerazione avanzata. Senza `--all` mostra solo telefoni e cavi bridge noti. | Confermato |
-| `detect [--progress]` | Rileva automaticamente piattaforma e capability del telefono collegato. | Confermato |
+| `devices [--all] [--json]` | Enumerazione avanzata. Senza `--all` mostra solo telefoni e cavi bridge noti. `--json` produce un formato macchina stabile. | Confermato |
+| `detect [--progress] [--json]` | Rileva automaticamente piattaforma e capability del telefono collegato. `--json` per lo scripting. | Confermato |
 | `identify --port <p>` | Query versione HW/SW su cavo seriale. | Confermato |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Legge una voce di rubrica. | Confermato |
 | `netmon --port <p> [--screen <n>]` | Schermata/controllo netmonitor. | Confermato |

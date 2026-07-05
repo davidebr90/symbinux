@@ -8,6 +8,7 @@ functions raise `BackendUnavailable` so the UI can degrade gracefully.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -110,29 +111,26 @@ def core_version() -> str | None:
 
 
 def list_usb_devices(include_all: bool = False) -> list[Device]:
-    """Enumerate USB devices via the Rust CLI (advanced diagnostics view)."""
-    args = ["devices"]
+    """Enumerate USB devices via the Rust CLI (advanced diagnostics view).
+
+    Uses the CLI's stable JSON output, so there is no brittle column parsing.
+    """
+    args = ["devices", "--json"]
     if include_all:
         args.append("--all")
     out = _run(args)
+    try:
+        data = json.loads(out)
+    except (ValueError, TypeError):
+        return []
     devices: list[Device] = []
-    for line in out.splitlines():
-        line = line.rstrip()
-        if not line or line.startswith("BUS:ADDR") or line.startswith("("):
-            continue
-        # "001:004   0421:0400  Nokia 3310                   Nokia phone"
-        cols = line.split(None, 3)
-        if len(cols) < 4:
-            continue
-        bus_addr, vid_pid, name_and_role = cols[0], cols[1], cols[2] + " " + cols[3]
-        # name and role are separated by 2+ spaces in the CLI output
-        name, _, role = name_and_role.partition("  ")
+    for entry in data:
         devices.append(
             Device(
-                bus_addr=bus_addr,
-                vid_pid=vid_pid,
-                name=name.strip(),
-                role=role.strip() or "other",
+                bus_addr=f"{entry.get('bus', 0):03d}:{entry.get('address', 0):03d}",
+                vid_pid=f"{entry.get('vid', '')}:{entry.get('pid', '')}",
+                name=entry.get("name", ""),
+                role=entry.get("role", "other"),
             )
         )
     return devices

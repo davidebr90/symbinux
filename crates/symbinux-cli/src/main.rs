@@ -8,10 +8,12 @@ use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use log::debug;
+use serde_json::json;
 
 use symbinux_devices::{detect_staged, dispatch, DeviceKind};
 use symbinux_protocol::message::{self, MemoryType, Safety};
-use symbinux_protocol::Fbus2Frame;
+use symbinux_protocol::{hw_sw_version, Fbus2Frame};
 use symbinux_transport::{exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -35,6 +37,9 @@ enum Commands {
         /// Show every USB device, not just phones and known cable bridges.
         #[arg(long)]
         all: bool,
+        /// Emit a JSON array instead of a text table (stable machine format).
+        #[arg(long)]
+        json: bool,
     },
     /// Auto-detect connected phones and show their platform and capabilities.
     Detect {
@@ -42,6 +47,9 @@ enum Commands {
         /// so a caller can drive a real progress bar.
         #[arg(long)]
         progress: bool,
+        /// Emit a JSON array of detected phones instead of text lines.
+        #[arg(long)]
+        json: bool,
     },
     /// Query the phone's hardware and software version.
     Identify {
@@ -133,46 +141,81 @@ fn run_command(port: &str, cmd: &message::Command) -> Result<()> {
     link.write_all(&message::fbus_init_preamble(128))
         .context("sending FBUS init preamble")?;
 
-    println!("→ {} : {}", cmd.name, hexdump(&cmd.frame.encode()));
+    let request = cmd.frame.encode();
+    debug!("request {} = {}", cmd.name, hexdump(&request));
+    println!("→ {} : {}", cmd.name, hexdump(&request));
     let frames = exchange_fbus2(&mut link, &cmd.frame, Duration::from_millis(1500))
         .context("no valid reply from the phone")?;
 
+    let mut got_data = false;
     for f in &frames {
         if f.is_ack() {
             println!("← ACK");
         } else {
+            got_data = true;
             println!("← reply msg_type={:#04x} : {}", f.msg_type, hexdump(&f.data));
-            if let Ok(text) = std::str::from_utf8(&f.data) {
-                let printable: String = text.chars().filter(|c| !c.is_control() || *c == '\n').collect();
+            // Typed decode of known replies.
+            if let Some(v) = hw_sw_version(f) {
+                println!("  model={} firmware={} date={}", v.model, v.firmware, v.date);
+            } else if let Ok(text) = std::str::from_utf8(&f.data) {
+                let printable: String =
+                    text.chars().filter(|c| !c.is_control() || *c == '\n').collect();
                 if printable.trim().len() > 2 {
                     println!("  as text: {}", printable.trim());
                 }
             }
         }
     }
+    if !got_data {
+        // Distinguish "only ACK(s), no reply" from a real answer.
+        eprintln!("warning: acknowledged but no data reply before timeout");
+    }
     Ok(())
 }
 
-fn cmd_devices(all: bool) -> Result<()> {
+fn role_str(role: &Role) -> String {
+    match role {
+        Role::NokiaPhone => "Nokia phone".to_string(),
+        Role::CableBridge(name) => format!("cable bridge ({name})"),
+        Role::Other => "other".to_string(),
+    }
+}
+
+fn cmd_devices(all: bool, as_json: bool) -> Result<()> {
     let devices = list_usb_devices().context("enumerating USB devices")?;
+
+    if as_json {
+        let arr: Vec<_> = devices
+            .iter()
+            .filter(|d| all || d.is_relevant())
+            .map(|d| {
+                json!({
+                    "bus": d.bus,
+                    "address": d.address,
+                    "vid": format!("{:04x}", d.vendor_id),
+                    "pid": format!("{:04x}", d.product_id),
+                    "name": d.display_name(),
+                    "role": role_str(&d.role),
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&arr)?);
+        return Ok(());
+    }
+
     let mut shown = 0;
     println!("{:<10} {:<10} {:<28} ROLE", "BUS:ADDR", "VID:PID", "NAME");
     for d in &devices {
         if !all && !d.is_relevant() {
             continue;
         }
-        let role = match d.role {
-            Role::NokiaPhone => "Nokia phone".to_string(),
-            Role::CableBridge(name) => format!("cable bridge ({name})"),
-            Role::Other => "other".to_string(),
-        };
         println!(
             "{:<10} {:04X}:{:04X}  {:<28} {}",
             format!("{:03}:{:03}", d.bus, d.address),
             d.vendor_id,
             d.product_id,
             truncate(&d.display_name(), 28),
-            role,
+            role_str(&d.role),
         );
         shown += 1;
     }
@@ -182,21 +225,42 @@ fn cmd_devices(all: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_detect(progress: bool) -> Result<()> {
+fn cmd_detect(progress: bool, as_json: bool) -> Result<()> {
     let devices = detect_staged(|done, total, stage| {
-        if progress {
-            // Machine-readable progress on stdout for callers (e.g. the GUI).
+        // Progress lines drive a real progress bar; suppressed in JSON mode so
+        // stdout stays a single valid JSON document.
+        if progress && !as_json {
             println!("PROGRESS {done} {total} {stage}");
         }
     })
     .context("USB detection")?;
 
     // Report only phones/handsets; skip hubs and unrelated peripherals.
+    let recognised: Vec<_> = devices.into_iter().filter(|d| d.kind() != DeviceKind::Unknown).collect();
+
+    if as_json {
+        let arr: Vec<_> = recognised
+            .into_iter()
+            .map(|device| {
+                let handler = dispatch(device);
+                let id = handler.identify();
+                json!({
+                    "vid": format!("{:04x}", id.vendor_id),
+                    "pid": format!("{:04x}", id.product_id),
+                    "platform": id.platform.as_str(),
+                    "model": id.model,
+                    "serial": id.serial,
+                    "detail": id.detail,
+                    "capabilities": handler.capabilities().iter().map(|c| c.as_str()).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&arr)?);
+        return Ok(());
+    }
+
     let mut shown = 0;
-    for device in devices {
-        if device.kind() == DeviceKind::Unknown {
-            continue;
-        }
+    for device in recognised {
         let handler = dispatch(device);
         let id = handler.identify();
         let caps = handler
@@ -234,10 +298,14 @@ fn truncate(s: &str, n: usize) -> String {
 }
 
 fn main() -> Result<()> {
+    // Logging goes to stderr (RUST_LOG=debug for frame traces); stdout stays
+    // clean for the machine-readable output the GUI parses.
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+
     let cli = Cli::parse();
     match cli.command {
-        Commands::Devices { all } => cmd_devices(all),
-        Commands::Detect { progress } => cmd_detect(progress),
+        Commands::Devices { all, json } => cmd_devices(all, json),
+        Commands::Detect { progress, json } => cmd_detect(progress, json),
         Commands::Identify { port } => run_command(&port, &message::identify_hw_sw(0x40)),
         Commands::Getphonebook { port, mem, location } => {
             let mem = parse_mem(&mem)?;

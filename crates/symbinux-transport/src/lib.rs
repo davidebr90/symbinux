@@ -69,6 +69,10 @@ pub fn exchange_fbus2<T: Transport>(
                     return Ok(frames);
                 }
             }
+        } else {
+            // A read timeout (no bytes): back off briefly so we don't spin the
+            // CPU polling the port hundreds of times a second while waiting.
+            std::thread::sleep(Duration::from_millis(5));
         }
     }
 

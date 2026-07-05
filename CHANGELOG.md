@@ -14,6 +14,24 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error
   states (no fake loader). Replaces the previous "not available" placeholder.
+- **Typed response decoding** (`symbinux-protocol::decode`): the HW/SW version
+  reply is parsed into a struct (`model`/`firmware`/`date`), validated against
+  the real Nokia 3310 capture. `identify` now prints decoded fields.
+- **Stable JSON output** (`--json`) on `devices` and `detect`, so the GUI and
+  scripts consume structured data instead of scraped text; the GUI now uses it
+  for device enumeration (removing a class of column-parsing bugs).
+- **Structured logging** via the `log`/`env_logger` crates (previously declared
+  but unused): `RUST_LOG=debug` gives frame traces on stderr, keeping stdout
+  clean for machine parsing.
+- New reference docs from a multi-project review: `docs/COMPARISON.md` (prior art
+  + prioritised feature backlog) and `docs/CROSS_PLATFORM.md` (Linux/Windows/macOS
+  compatibility matrix + strategy). The roadmap is updated with the backlog.
+
+### Fixed
+- **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty
+  reads so waiting for a reply no longer spins a core.
+- **`write_phonebook` silent truncation**: it now returns an error instead of
+  wrapping a name/number longer than the protocol's single-byte length field.
 
 ### Changed
 - English is now the documentation standard; the GitHub repository description is

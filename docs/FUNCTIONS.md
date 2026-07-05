@@ -48,8 +48,8 @@ unrecognised cables. It performs no phone I/O.
 
 | Command | Purpose | Safety |
 |---|---|---|
-| `devices [--all]` | Advanced device enumeration. Without `--all`, shows only phones and known cable bridges. | Confirmed |
-| `detect [--progress]` | Auto-detect a connected phone's platform and capabilities. | Confirmed |
+| `devices [--all] [--json]` | Advanced device enumeration. Without `--all`, shows only phones and known cable bridges. `--json` emits a stable machine format. | Confirmed |
+| `detect [--progress] [--json]` | Auto-detect a connected phone's platform and capabilities. `--json` for scripting. | Confirmed |
 | `identify --port <p>` | HW/SW version query over a serial cable. | Confirmed |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Read a phonebook entry. | Confirmed |
 | `netmon --port <p> [--screen <n>]` | Netmonitor screen / control. | Confirmed |

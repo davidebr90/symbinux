@@ -14,6 +14,26 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader
   finto). Sostituisce il precedente segnaposto "non disponibile".
+- **Decodifica tipizzata delle risposte** (`symbinux-protocol::decode`): la
+  risposta versione HW/SW è ora parsata in una struct (`model`/`firmware`/`date`),
+  validata contro la cattura reale del Nokia 3310. `identify` stampa i campi
+  decodificati.
+- **Output JSON stabile** (`--json`) su `devices` e `detect`, così GUI e script
+  usano dati strutturati invece di testo da scansionare; la GUI ora lo usa per
+  l'enumerazione dispositivi (elimina una classe di bug di parsing a colonne).
+- **Logging strutturato** via i crate `log`/`env_logger` (prima dichiarati ma
+  inutilizzati): `RUST_LOG=debug` dà i trace dei frame su stderr, tenendo pulito
+  lo stdout per il parsing automatico.
+- Nuovi documenti di riferimento da una review multi-progetto: `docs/COMPARISON.md`
+  (progetti simili + backlog di funzioni prioritizzato) e `docs/CROSS_PLATFORM.md`
+  (matrice di compatibilità Linux/Windows/macOS + strategia). La roadmap è
+  aggiornata col backlog.
+
+### Corretto
+- **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le
+  read vuote, così l'attesa di una risposta non satura più un core.
+- **Troncamento silenzioso in `write_phonebook`**: ora restituisce un errore
+  invece di troncare nome/numero più lunghi del campo lunghezza a un byte.
 
 ### Modificato
 - L'inglese è ora lo standard per la documentazione; la descrizione del

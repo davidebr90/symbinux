@@ -105,16 +105,38 @@ pub fn netmonitor(field: u8, seq: u8) -> Command {
     single("netmonitor", Safety::Confirmed, MSG_SECURITY, &[0x7E, field], seq)
 }
 
+/// Error building a command from user input.
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum CommandError {
+    #[error("{field} is too long: {len} bytes (max {max})")]
+    TooLong { field: &'static str, len: usize, max: usize },
+}
+
 /// Write a phonebook entry (modifies the phone — experimental).
-pub fn write_phonebook(mem: MemoryType, location: u8, name: &str, number: &str, seq: u8) -> Command {
+///
+/// Returns an error instead of silently truncating when the name or number
+/// exceeds the single-byte length field the protocol uses.
+pub fn write_phonebook(
+    mem: MemoryType,
+    location: u8,
+    name: &str,
+    number: &str,
+    seq: u8,
+) -> Result<Command, CommandError> {
     let name_b = name.as_bytes();
     let num_b = number.as_bytes();
+    if name_b.len() > 0xFF {
+        return Err(CommandError::TooLong { field: "name", len: name_b.len(), max: 0xFF });
+    }
+    if num_b.len() > 0xFF {
+        return Err(CommandError::TooLong { field: "number", len: num_b.len(), max: 0xFF });
+    }
     let mut block = vec![0x00, 0x04, mem as u8, location, name_b.len() as u8];
     block.extend_from_slice(name_b);
     block.push(num_b.len() as u8);
     block.extend_from_slice(num_b);
     block.push(0x00); // caller group, "no group"
-    single("phonebook:write", Safety::Experimental, MSG_PHONEBOOK, &block, seq)
+    Ok(single("phonebook:write", Safety::Experimental, MSG_PHONEBOOK, &block, seq))
 }
 
 /// The `0x55` wake/sync preamble that must precede the first FBUS/2 frame.
@@ -152,5 +174,13 @@ mod tests {
         let p = fbus_init_preamble(128);
         assert_eq!(p.len(), 128);
         assert!(p.iter().all(|b| *b == 0x55));
+    }
+
+    #[test]
+    fn write_phonebook_ok_and_rejects_long_name() {
+        assert!(write_phonebook(MemoryType::Phone, 1, "Bob", "+39123", 0x40).is_ok());
+        let long = "x".repeat(256);
+        let err = write_phonebook(MemoryType::Phone, 1, &long, "1", 0x40).unwrap_err();
+        assert_eq!(err, CommandError::TooLong { field: "name", len: 256, max: 0xFF });
     }
 }

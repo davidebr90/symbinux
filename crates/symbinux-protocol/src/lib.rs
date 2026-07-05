@@ -12,10 +12,12 @@
 //! Nothing here derives from proprietary Nokia libraries or binaries.
 
 pub mod checksum;
+pub mod decode;
 pub mod fbus2;
 pub mod mbus;
 pub mod message;
 
+pub use decode::{hw_sw_version, HwSwVersion};
 pub use fbus2::{Fbus2Error, Fbus2Frame};
 pub use mbus::{MbusError, MbusFrame};
 pub use message::{Command, MemoryType, Safety};
