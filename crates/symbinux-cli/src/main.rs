@@ -9,6 +9,7 @@ use std::time::Duration;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 
+use symbinux_devices::{detect_staged, dispatch, DeviceKind};
 use symbinux_protocol::message::{self, MemoryType, Safety};
 use symbinux_protocol::Fbus2Frame;
 use symbinux_transport::{exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport};
@@ -34,6 +35,13 @@ enum Commands {
         /// Show every USB device, not just phones and known cable bridges.
         #[arg(long)]
         all: bool,
+    },
+    /// Auto-detect connected phones and show their platform and capabilities.
+    Detect {
+        /// Emit machine-readable progress lines (`PROGRESS done total stage`)
+        /// so a caller can drive a real progress bar.
+        #[arg(long)]
+        progress: bool,
     },
     /// Query the phone's hardware and software version.
     Identify {
@@ -174,6 +182,49 @@ fn cmd_devices(all: bool) -> Result<()> {
     Ok(())
 }
 
+fn cmd_detect(progress: bool) -> Result<()> {
+    let devices = detect_staged(|done, total, stage| {
+        if progress {
+            // Machine-readable progress on stdout for callers (e.g. the GUI).
+            println!("PROGRESS {done} {total} {stage}");
+        }
+    })
+    .context("USB detection")?;
+
+    // Report only phones/handsets; skip hubs and unrelated peripherals.
+    let mut shown = 0;
+    for device in devices {
+        if device.kind() == DeviceKind::Unknown {
+            continue;
+        }
+        let handler = dispatch(device);
+        let id = handler.identify();
+        let caps = handler
+            .capabilities()
+            .iter()
+            .map(|c| c.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        // Tab-separated for unambiguous parsing (platform/detail may contain spaces):
+        // DEVICE <vid:pid> <platform> <model> <serial> <detail> <caps>
+        println!(
+            "DEVICE\t{:04x}:{:04x}\t{}\t{}\t{}\t{}\t{}",
+            id.vendor_id,
+            id.product_id,
+            id.platform.as_str(),
+            id.model.as_deref().unwrap_or("?"),
+            id.serial.as_deref().unwrap_or("?"),
+            id.detail,
+            caps,
+        );
+        shown += 1;
+    }
+    if shown == 0 {
+        println!("No recognised phone detected. Use `devices --all` for a raw inventory.");
+    }
+    Ok(())
+}
+
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n {
         s.to_string()
@@ -186,6 +237,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Devices { all } => cmd_devices(all),
+        Commands::Detect { progress } => cmd_detect(progress),
         Commands::Identify { port } => run_command(&port, &message::identify_hw_sw(0x40)),
         Commands::Getphonebook { port, mem, location } => {
             let mem = parse_mem(&mem)?;

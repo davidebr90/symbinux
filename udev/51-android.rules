@@ -1,0 +1,31 @@
+# Symbinux - udev rules for Android devices (ADB, fastboot, MTP/PTP)
+#
+# Category rule, separate from the Nokia and Apple ones. Matches by USB
+# INTERFACE signature (vendor-agnostic) rather than a hardcoded vendor list, so
+# new devices work without edits. Grants the locally logged-in user access via
+# systemd-logind (TAG+="uaccess"), with the plugdev group as a fallback.
+#
+# Install:
+#   sudo cp udev/51-android.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#   # fallback group (if uaccess is unavailable): sudo usermod -aG plugdev $USER
+#
+# ID_USB_INTERFACES encodes each interface as :CCSSPP: (class/subclass/protocol).
+
+ACTION=="remove", GOTO="symbinux_android_end"
+SUBSYSTEM!="usb", GOTO="symbinux_android_end"
+
+# ADB debugging interface (0xff / 0x42 / 0x01) — vendor-agnostic
+ENV{ID_USB_INTERFACES}=="*:ff4201:*", MODE="0660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="android_adb"
+
+# Fastboot / bootloader (0xff / 0x42 / 0x03)
+ENV{ID_USB_INTERFACES}=="*:ff4203:*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# MTP (0xff / 0xff / 0x00) and PTP (0x06 / 0x01 / 0x01)
+ENV{ID_USB_INTERFACES}=="*:ffff00:*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+ENV{ID_USB_INTERFACES}=="*:060101:*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Android Open Accessory mode re-enumerates under Google's vendor id 0x18d1.
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+LABEL="symbinux_android_end"

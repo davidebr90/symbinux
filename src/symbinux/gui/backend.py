@@ -33,6 +33,19 @@ class Device:
         return self.role.startswith("Nokia")
 
 
+@dataclass(frozen=True)
+class DetectedPhone:
+    vid_pid: str
+    platform: str
+    model: str
+    serial: str
+    detail: str
+    capabilities: tuple[str, ...]
+
+    def has_capability(self, cap: str) -> bool:
+        return cap in self.capabilities
+
+
 def _find_binary() -> str:
     # 1) explicit override, 2) PATH, 3) local cargo build output (dev)
     env = os.environ.get("SYMBINUX_FBUS_BIN")
@@ -113,3 +126,54 @@ def list_usb_devices(include_all: bool = False) -> list[Device]:
 def identify(port: str) -> str:
     """Run the identify command against a serial port, returning raw output."""
     return _run(["identify", "--port", port], timeout=8.0)
+
+
+def detect_devices(progress_cb=None, timeout: float = 15.0) -> list[DetectedPhone]:
+    """Run `detect --progress`, driving `progress_cb(fraction, stage)` from the
+    real `PROGRESS done total stage` lines, and return the detected phones.
+
+    The fractions come straight from the cascade's completed steps — this is a
+    genuine progress signal, not a timed animation.
+    """
+    binary = _find_binary()
+    try:
+        proc = subprocess.Popen(
+            [binary, "detect", "--progress"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as exc:
+        raise BackendUnavailable(str(exc)) from exc
+
+    phones: list[DetectedPhone] = []
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        line = line.rstrip("\n")
+        if line.startswith("PROGRESS "):
+            parts = line.split(None, 3)
+            if len(parts) >= 3 and progress_cb is not None:
+                try:
+                    done, total = int(parts[1]), int(parts[2])
+                    stage = parts[3] if len(parts) > 3 else ""
+                    progress_cb(done / total if total else 1.0, stage)
+                except ValueError:
+                    pass
+        elif line.startswith("DEVICE\t"):
+            cols = line.split("\t")
+            if len(cols) >= 7:
+                phones.append(
+                    DetectedPhone(
+                        vid_pid=cols[1],
+                        platform=cols[2],
+                        model=cols[3],
+                        serial=cols[4],
+                        detail=cols[5],
+                        capabilities=tuple(c for c in cols[6].split(",") if c),
+                    )
+                )
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    return phones

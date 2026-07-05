@@ -28,6 +28,8 @@ proprietary Nokia code, libraries or binaries**.
 - **Phonebook** read (and experimental write) across ME/SIM memory.
 - **Netmonitor** diagnostics.
 - **SMS** read/send (experimental).
+- **Auto-detect** the connected phone and its platform (Nokia legacy / Android /
+  Apple iOS), each exposing its own capability set so the UI adapts.
 - **Advanced device inventory** — an lsusb-style view of everything connected
   (VID:PID, extended names, classification) to debug detection issues.
 - **Raw frame mode** for protocol reverse-engineering.
@@ -42,6 +44,7 @@ symbinux/
 ├── crates/                     # Rust workspace (the core)
 │   ├── symbinux-protocol/      # FBUS/MBUS framing — pure, no I/O, fully tested
 │   ├── symbinux-transport/     # serial (termios) + raw USB (libusb), enumeration
+│   ├── symbinux-devices/       # USB fingerprinting + per-platform dispatch
 │   └── symbinux-cli/           # `symbinux-fbus` gnokii-style command-line tool
 ├── src/symbinux/               # GTK4 + libadwaita GUI (Python), calls the CLI
 ├── udev/                       # unprivileged-access rules

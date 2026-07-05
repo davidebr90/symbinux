@@ -1,6 +1,19 @@
 """Tests for the GUI-to-core bridge that do not require the compiled binary."""
 
-from symbinux.gui.backend import Device, core_version
+from symbinux.gui.backend import DetectedPhone, Device, core_version
+
+
+def test_detected_phone_capabilities():
+    phone = DetectedPhone(
+        vid_pid="0421:0400",
+        platform="Nokia (legacy)",
+        model="3310",
+        serial="?",
+        detail="FBUS/MBUS",
+        capabilities=("identify", "phonebook", "sms", "netmonitor"),
+    )
+    assert phone.has_capability("phonebook")
+    assert not phone.has_capability("app-install")
 
 
 def test_device_phone_classification():

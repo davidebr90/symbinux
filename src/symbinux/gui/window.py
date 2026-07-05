@@ -22,7 +22,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("GdkPixbuf", "2.0")
 
-from gi.repository import Adw, Gdk, GdkPixbuf, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from symbinux import __version__
 from symbinux.gui import backend, theme
@@ -35,12 +35,16 @@ CHANNELS = [
     ("wifi", "Wi-Fi", "network-wireless-symbolic"),
 ]
 
+# key, source label, icon, source tooltip, required capability (None = always).
+# The capability gates the button against the selected device's advertised
+# capabilities, so the UI adapts per platform (Nokia / Android / iOS) without
+# assuming feature parity.
 FUNCTIONS = [
-    ("identify", N_("Identify"), "dialog-information-symbolic", N_("Read model, IMEI and firmware")),
-    ("phonebook", N_("Phonebook"), "contact-new-symbolic", N_("Import / export contacts")),
-    ("sms", N_("SMS"), "mail-message-new-symbolic", N_("Read and send messages")),
-    ("netmon", N_("Netmonitor"), "network-cellular-signal-excellent-symbolic", N_("Network diagnostics")),
-    ("advanced", N_("Advanced"), "utilities-terminal-symbolic", N_("Raw USB/Bluetooth device list")),
+    ("identify", N_("Identify"), "dialog-information-symbolic", N_("Read model, IMEI and firmware"), "identify"),
+    ("phonebook", N_("Phonebook"), "contact-new-symbolic", N_("Import / export contacts"), "phonebook"),
+    ("sms", N_("SMS"), "mail-message-new-symbolic", N_("Read and send messages"), "sms"),
+    ("netmon", N_("Netmonitor"), "network-cellular-signal-excellent-symbolic", N_("Network diagnostics"), "netmonitor"),
+    ("advanced", N_("Advanced"), "utilities-terminal-symbolic", N_("Raw USB/Bluetooth device list"), None),
 ]
 
 
@@ -77,8 +81,9 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         self.set_size_request(720, 600)
 
         self._channel = "usb"
-        self._selected_device: backend.Device | None = None
+        self._selected_device: backend.DetectedPhone | None = None
         self._function_buttons: dict[str, Gtk.Button] = {}
+        self._function_capability: dict[str, str | None] = {}
         self._setting_up = True
         self._logos: list[Gtk.Picture] = []
 
@@ -229,13 +234,14 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         for side in ("start", "end", "top", "bottom"):
             getattr(wrap, f"set_margin_{side}")(12)
 
-        for key, label, icon, tooltip in FUNCTIONS:
+        for key, label, icon, tooltip, capability in FUNCTIONS:
             btn = Gtk.Button()
             btn.set_child(Adw.ButtonContent(label=_(label), icon_name=icon))
             btn.set_tooltip_text(_(tooltip))
             btn.set_sensitive(False)
             btn.connect("clicked", self._on_function_clicked, key)
             self._function_buttons[key] = btn
+            self._function_capability[key] = capability
             wrap.append(btn)
         return wrap
 
@@ -282,9 +288,15 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             app.notify(title, body)
 
     def _update_function_sensitivity(self) -> None:
-        has_phone = self._selected_device is not None and self._selected_device.is_phone
+        phone = self._selected_device
         for key, button in self._function_buttons.items():
-            button.set_sensitive(True if key == "advanced" else has_phone)
+            if key == "advanced":
+                button.set_sensitive(True)  # diagnostics always available
+                continue
+            capability = self._function_capability.get(key)
+            button.set_sensitive(
+                phone is not None and capability is not None and phone.has_capability(capability)
+            )
 
     def refresh(self) -> None:
         """Rescan the active channel (off the UI thread) and rebuild the view."""
@@ -300,14 +312,19 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             )
             return
 
-        self._progress.indeterminate(_("Scanning USB…"))
+        # Real progress: the bar advances as the detection cascade completes
+        # actual steps (reported by the core), not on a timer.
+        self._progress.determinate(_("Detecting devices…"))
+
+        def on_progress(fraction, _stage):
+            GLib.idle_add(self._progress.set_progress, fraction, _("Detecting devices…"))
 
         def work():
-            return backend.list_usb_devices()
+            return backend.detect_devices(progress_cb=on_progress)
 
-        def done(devices):
+        def done(phones):
             self._progress.finish()
-            self._populate([d for d in devices if d.is_phone or "cable" in d.role])
+            self._populate(phones)
 
         def failed(exc):
             self._progress.finish()
@@ -315,8 +332,8 @@ class SymbinuxWindow(Adw.ApplicationWindow):
 
         run_async(work, done, failed)
 
-    def _populate(self, devices) -> None:
-        if not devices:
+    def _populate(self, phones) -> None:
+        if not phones:
             self._show_empty(
                 title=_("No phone or cable detected"),
                 description=_(
@@ -325,10 +342,15 @@ class SymbinuxWindow(Adw.ApplicationWindow):
                 ),
             )
             return
-        for device in devices:
-            row = Adw.ActionRow(title=device.name, subtitle=f"{device.vid_pid} · {device.role}")
+        for phone in phones:
+            caps = ", ".join(phone.capabilities)
+            subtitle = f"{phone.platform} · {phone.vid_pid}"
+            if caps:
+                subtitle += f" · {caps}"
+            title = phone.model if phone.model and phone.model != "?" else phone.platform
+            row = Adw.ActionRow(title=title, subtitle=subtitle)
             row.add_prefix(Gtk.Image.new_from_icon_name("phone-symbolic"))
-            row.device = device  # type: ignore[attr-defined]
+            row.device = phone  # type: ignore[attr-defined]
             self._device_list_box.append(row)
         self._device_stack.set_visible_child_name("list")
 
@@ -370,7 +392,7 @@ class SymbinuxWindow(Adw.ApplicationWindow):
 
 
 def label_for(key: str) -> str:
-    for k, label, _icon, _tt in FUNCTIONS:
+    for k, label, _icon, _tt, _cap in FUNCTIONS:
         if k == key:
             return _(label)
     return key

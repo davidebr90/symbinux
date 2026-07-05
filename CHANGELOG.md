@@ -7,6 +7,28 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-05
+
+### Aggiunto
+- **Layer di rilevamento e dispatch multi-piattaforma** (`symbinux-devices`):
+  fingerprinting USB a cascata che riconosce Nokia legacy / Android
+  (ADB/fastboot/MTP/PTP/AOA) / Apple iOS / sconosciuto, con costanti confermate
+  da gnokii, AOSP/AOA e libimobiledevice. Interfaccia comune `DeviceHandler`
+  (strategy pattern) con `NokiaLegacyHandler`, `AndroidHandler`, `AppleHandler`
+  e capability differenziate per piattaforma. `DeviceManager` traccia i
+  dispositivi per **porta fisica** (bus + catena porte) così gli switch di
+  modalità (AOA Android, trust iOS) sono seguiti e non persi. 15 test con
+  fingerprint sintetici per ogni categoria.
+- Comando CLI **`detect`** (con `--progress` per progresso reale) che mostra
+  piattaforma e capability dei telefoni collegati.
+- Regole udev separate per categoria (`51-android.rules`), guida `udev/README.md`
+  e `docs/DEVICE_DETECTION.md` (cascata, matrice capability, note d'integrazione:
+  usbmuxd per iOS, adb_client/idevice per Android).
+- La GUI ora usa il rilevamento multi-piattaforma: la lista mostra piattaforma e
+  capability di ogni telefono, e i pulsanti-funzione si abilitano in base alle
+  capability effettive del dispositivo selezionato. La **barra di progresso a
+  percentuale** è guidata dai passi reali del comando `detect`.
+
 ### Modificato
 - **Revisione UX/UI della GUI**: dimensione minima della finestra imposta
   (720×600, default 860×680) così il contenuto non è mai compresso; logo più
