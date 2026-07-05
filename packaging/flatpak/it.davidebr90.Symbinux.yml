@@ -2,15 +2,36 @@ app-id: it.davidebr90.Symbinux
 runtime: org.gnome.Platform
 runtime-version: "47"
 sdk: org.gnome.Sdk
+# Rust core is built with the freedesktop rust-stable SDK extension.
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
 command: symbinux
 finish-args:
   - --share=ipc
   - --socket=fallback-x11
   - --socket=wayland
-  - --device=all # necessario per l'accesso a udev (USB) e BlueZ (Bluetooth)
+  - --device=all # udev (USB) and BlueZ (Bluetooth) access
+  - --system-talk-name=org.freedesktop.login1 # uaccess for phone devices
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
 
 modules:
-  - name: symbinux
+  # 1) Rust core + CLI (`symbinux-fbus`), used by the GUI at runtime.
+  - name: symbinux-core
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/symbinux-core/cargo
+    build-commands:
+      - cargo build --release --offline --bin symbinux-fbus || cargo build --release --bin symbinux-fbus
+      - install -Dm755 target/release/symbinux-fbus /app/bin/symbinux-fbus
+    sources:
+      - type: dir
+        path: ../..
+
+  # 2) Python GTK GUI (`symbinux`), which shells out to symbinux-fbus.
+  - name: symbinux-gui
     buildsystem: simple
     build-commands:
       - pip3 install --no-build-isolation --prefix=/app .

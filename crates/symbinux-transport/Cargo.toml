@@ -1,0 +1,19 @@
+[package]
+name = "symbinux-transport"
+description = "USB and serial transport layer for legacy Nokia phone communication"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+symbinux-protocol.workspace = true
+thiserror.workspace = true
+log.workspace = true
+serialport = "4.5"
+rusb = "0.9"
+
+[lib]
+name = "symbinux_transport"

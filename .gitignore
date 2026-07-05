@@ -13,6 +13,11 @@ venv/
 htmlcov/
 .coverage
 
+# Rust
+/target/
+**/target/
+# Cargo.lock is committed: this workspace ships an application binary (the CLI).
+
 # Flatpak
 .flatpak-builder/
 build-dir/

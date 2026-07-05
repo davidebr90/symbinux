@@ -1,0 +1,30 @@
+# Symbinux - udev rules for legacy Nokia phones and DKU-2/CA-42 style cables
+#
+# Goal: allow non-privileged access (no sudo) to the phone's USB device and to
+# the virtual serial port it exposes, on modern systemd distributions.
+#
+# Install:
+#   sudo cp udev/69-nokia-legacy.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# Two access models are provided:
+#   * TAG+="uaccess"  -> systemd-logind grants access to the user physically
+#                        logged in at the local seat (preferred, systemd >= 213).
+#   * GROUP="dialout" -> fallback for setups without logind uaccess; add your
+#                        user to the group once:  sudo usermod -aG dialout $USER
+#
+# VID 0x0421 is Nokia Mobile Phones. Product IDs vary per model/cable; the broad
+# vendor match below is intentional so new models work without editing rules.
+# See data/devices.json for the per-model VID/PID table.
+
+# Raw USB device node (used by the libusb transport, e.g. BB5 phones without TTY)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0421", MODE="0660", GROUP="dialout", TAG+="uaccess"
+
+# Virtual serial port exposed by DKU-2/CA-42 cables (ftdi_sio / cp210x / pl2303),
+# reachable at a stable path /dev/nokia_fbus
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="0421", SYMLINK+="nokia_fbus", MODE="0660", GROUP="dialout", TAG+="uaccess"
+
+# Some CA-42 clones use a Prolific/FTDI bridge that reports the bridge vendor,
+# not Nokia's. Uncomment and adjust if your cable enumerates under its own VID:
+# KERNEL=="ttyUSB*", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", SYMLINK+="nokia_fbus", MODE="0660", GROUP="dialout", TAG+="uaccess"
+# KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="nokia_fbus", MODE="0660", GROUP="dialout", TAG+="uaccess"

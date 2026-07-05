@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbinux"
-version = "0.1.0"
-description = "Modern USB/Bluetooth device management for GNU/Linux - fork of Nokinux"
+version = "0.2.0"
+description = "GTK front-end for the Symbinux Nokia FBUS/MBUS toolkit"
 readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.11"
@@ -13,9 +13,9 @@ authors = [
     { name = "Davide Pica" },
 ]
 
-dependencies = [
-    "pyudev>=0.24; sys_platform == 'linux'",
-]
+# The GUI drives the Rust core (`symbinux-fbus`) via subprocess; it has no
+# Python protocol or USB dependencies of its own.
+dependencies = []
 
 [project.optional-dependencies]
 gui = [
@@ -28,7 +28,6 @@ dev = [
 
 [project.scripts]
 symbinux = "symbinux.gui.main:run"
-symbinux-cli = "symbinux.core.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

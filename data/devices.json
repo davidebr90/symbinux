@@ -1,0 +1,98 @@
+{
+  "$comment": "Known USB identifiers for legacy Nokia phones and the serial-bridge cables used to reach them. Community-maintained: add entries via pull request. VID/PID pairs are the primary key. 'transport' indicates how the device is reached on Linux; 'confidence' mirrors docs/PROTOCOL_NOTES.md.",
+  "vendors": {
+    "0x0421": "Nokia Mobile Phones"
+  },
+  "phones": [
+    {
+      "vid": "0x0421",
+      "pid": "0x0400",
+      "model": "7600 (Phone Parent)",
+      "family": "Series 40",
+      "transport": "usb-serial",
+      "confidence": "confirmed"
+    },
+    {
+      "vid": "0x0421",
+      "pid": "0x0402",
+      "model": "6255",
+      "family": "Series 40",
+      "transport": "usb-serial",
+      "confidence": "confirmed"
+    },
+    {
+      "vid": "0x0421",
+      "pid": "0x0410",
+      "model": "6230 / DKU-2 class",
+      "family": "Series 40",
+      "transport": "usb-raw",
+      "confidence": "likely"
+    },
+    {
+      "vid": "0x0421",
+      "pid": "0x0411",
+      "model": "7610",
+      "family": "Series 60 (Symbian)",
+      "transport": "usb-raw",
+      "confidence": "confirmed"
+    },
+    {
+      "vid": "0x0421",
+      "pid": "0x0416",
+      "model": "6170",
+      "family": "Series 40",
+      "transport": "usb-serial",
+      "confidence": "confirmed"
+    },
+    {
+      "vid": "0x0421",
+      "pid": "0x041d",
+      "model": "6670",
+      "family": "Series 60 (Symbian)",
+      "transport": "usb-raw",
+      "confidence": "confirmed"
+    }
+  ],
+  "cables": [
+    {
+      "vid": "0x0421",
+      "pid": "0x0800",
+      "model": "Connectivity Cable DKU-5",
+      "chipset": "Nokia",
+      "transport": "usb-serial",
+      "confidence": "confirmed"
+    },
+    {
+      "vid": "0x0421",
+      "pid": "0x0801",
+      "model": "Data Cable DKU-6",
+      "chipset": "Nokia",
+      "transport": "usb-serial",
+      "confidence": "confirmed"
+    },
+    {
+      "vid": "0x067b",
+      "pid": "0x2303",
+      "model": "CA-42 clone (Prolific)",
+      "chipset": "Prolific PL2303",
+      "transport": "usb-serial",
+      "confidence": "likely"
+    },
+    {
+      "vid": "0x10c4",
+      "pid": "0xea60",
+      "model": "CA-42 clone (Silicon Labs)",
+      "chipset": "Silicon Labs CP210x",
+      "transport": "usb-serial",
+      "confidence": "likely"
+    },
+    {
+      "vid": "0x0403",
+      "pid": "0x6001",
+      "model": "CA-42 clone (FTDI)",
+      "chipset": "FTDI FT232",
+      "transport": "usb-serial",
+      "confidence": "likely"
+    }
+  ]
+}

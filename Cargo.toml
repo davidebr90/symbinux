@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/symbinux-protocol",
+    "crates/symbinux-transport",
+    "crates/symbinux-cli",
+]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.74"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/davidebr90/symbinux"
+authors = ["Davide Pica"]
+
+[workspace.dependencies]
+symbinux-protocol = { path = "crates/symbinux-protocol" }
+symbinux-transport = { path = "crates/symbinux-transport" }
+thiserror = "1"
+log = "0.4"

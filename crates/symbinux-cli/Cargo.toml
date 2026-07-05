@@ -1,0 +1,19 @@
+[package]
+name = "symbinux-cli"
+description = "Command-line tool to talk to legacy Nokia phones over FBUS/MBUS"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+symbinux-protocol.workspace = true
+symbinux-transport.workspace = true
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1"
+
+[[bin]]
+name = "symbinux-fbus"
+path = "src/main.rs"
