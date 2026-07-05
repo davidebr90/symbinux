@@ -29,6 +29,12 @@ Stato dello stack Symbinux e percorso previsto verso un supporto più ampio.
   3310); output `--json` stabile su `devices`/`detect`; logging strutturato
   (`RUST_LOG`).
 
+- **Link USB app-owned (iniziato)** — `symbinux-fbus identify --usb` fa claim
+  diretto del dispositivo Nokia via libusb (driver kernel staccato, endpoint bulk
+  FBUS auto-scoperti), così un telefono è raggiungibile senza alcun driver
+  seriale del SO. Vedi `docs/CONNECTION_MODEL.md` — l'app possiede la connessione
+  e forza il link, invece di dipendere da driver/demoni del SO.
+
 Il backlog qui sotto è prioritizzato da una review multi-progetto; vedi
 `docs/COMPARISON.md` per i progetti simili e `docs/CROSS_PLATFORM.md` per la
 portabilità.

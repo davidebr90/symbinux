@@ -25,6 +25,12 @@ Status of the Symbinux stack and the planned path to broader phone support.
   version reply into a struct (validated against the real 3310 capture); stable
   `--json` output on `devices`/`detect`; structured logging (`RUST_LOG`).
 
+- **App-owned USB link (started)** — `symbinux-fbus identify --usb` claims the
+  Nokia device directly via libusb (kernel driver detached, FBUS bulk endpoints
+  auto-discovered), so a phone can be reached without any OS serial driver. See
+  `docs/CONNECTION_MODEL.md` — the app owns the connection and forces the link,
+  rather than depending on OS drivers/daemons.
+
 The backlog below is prioritised from a multi-project review; see
 `docs/COMPARISON.md` for prior art and `docs/CROSS_PLATFORM.md` for portability.
 

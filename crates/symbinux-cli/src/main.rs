@@ -16,7 +16,11 @@ use symbinux_protocol::message::{self, MemoryType, Safety};
 use symbinux_protocol::{hw_sw_version, Fbus2Frame};
 use symbinux_transport::{
     available_serial_ports, exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport,
+    UsbTransport,
 };
+
+/// Nokia Mobile Phones USB vendor id (used by the app-owned USB path).
+const NOKIA_VID: u16 = 0x0421;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -63,7 +67,11 @@ enum Commands {
     Identify {
         /// Serial port (Linux: /dev/ttyUSB0 or /dev/nokia_fbus; Windows: COM3).
         #[arg(long)]
-        port: String,
+        port: Option<String>,
+        /// Claim the Nokia USB device directly via libusb instead of a serial
+        /// port — the app-owned path that works without an OS serial driver.
+        #[arg(long)]
+        usb: bool,
     },
     /// Read a phonebook entry.
     Getphonebook {
@@ -134,16 +142,15 @@ fn hexdump(bytes: &[u8]) -> String {
         .join(" ")
 }
 
-/// Open the port, send the FBUS init preamble, run the command, print reply.
-fn run_command(port: &str, cmd: &message::Command) -> Result<()> {
+/// Send the FBUS init preamble over an already-open transport, run the command,
+/// print the reply. Generic so it works over serial OR the app-owned raw USB.
+fn run_command<T: Transport>(mut link: T, cmd: &message::Command) -> Result<()> {
     if cmd.safety == Safety::Dangerous {
         bail!(
             "refusing to send '{}': classified Dangerous (firmware/flash). Not supported.",
             cmd.name
         );
     }
-    let mut link =
-        SerialTransport::open_fbus(port).with_context(|| format!("opening serial port {port}"))?;
 
     // Wake the phone's UART and lock framing.
     link.write_all(&message::fbus_init_preamble(128))
@@ -188,6 +195,10 @@ fn run_command(port: &str, cmd: &message::Command) -> Result<()> {
         eprintln!("warning: acknowledged but no data reply before timeout");
     }
     Ok(())
+}
+
+fn open_serial(port: &str) -> Result<SerialTransport> {
+    SerialTransport::open_fbus(port).with_context(|| format!("opening serial port {port}"))
 }
 
 fn role_str(role: &Role) -> String {
@@ -363,18 +374,33 @@ fn main() -> Result<()> {
         Commands::Devices { all, json } => cmd_devices(all, json),
         Commands::Detect { progress, json } => cmd_detect(progress, json),
         Commands::Ports { json } => cmd_ports(json),
-        Commands::Identify { port } => run_command(&port, &message::identify_hw_sw(0x40)),
+        Commands::Identify { port, usb } => {
+            let cmd = message::identify_hw_sw(0x40);
+            if usb {
+                let link = UsbTransport::open_fbus_auto(NOKIA_VID)
+                    .context("claiming the Nokia USB device")?;
+                run_command(link, &cmd)
+            } else {
+                let p = port
+                    .as_deref()
+                    .context("provide --port <path>, or --usb to claim the device directly")?;
+                run_command(open_serial(p)?, &cmd)
+            }
+        }
         Commands::Getphonebook {
             port,
             mem,
             location,
         } => {
             let mem = parse_mem(&mem)?;
-            run_command(&port, &message::read_phonebook(mem, location, 0x40))
+            run_command(
+                open_serial(&port)?,
+                &message::read_phonebook(mem, location, 0x40),
+            )
         }
         Commands::Netmon { port, screen } => {
             let field = if screen == 255 { 0x00 } else { screen };
-            run_command(&port, &message::netmonitor(field, 0x40))
+            run_command(open_serial(&port)?, &message::netmonitor(field, 0x40))
         }
         Commands::Raw {
             port,
@@ -392,7 +418,7 @@ fn main() -> Result<()> {
                 safety: Safety::Experimental,
                 frame,
             };
-            run_command(&port, &cmd)
+            run_command(open_serial(&port)?, &cmd)
         }
     }
 }
