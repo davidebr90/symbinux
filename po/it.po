@@ -132,3 +132,12 @@ msgstr "Nessuna risposta."
 
 msgid "No serial port found — connect a DKU-2/CA-42 cable and try again."
 msgstr "Nessuna porta seriale trovata — collega un cavo DKU-2/CA-42 e riprova."
+
+msgid "Contacts"
+msgstr "Contatti"
+
+msgid "Fetching contacts…"
+msgstr "Recupero contatti…"
+
+msgid "No contacts."
+msgstr "Nessun contatto."

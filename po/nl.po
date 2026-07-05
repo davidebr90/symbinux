@@ -132,3 +132,12 @@ msgstr "Geen antwoord."
 
 msgid "No serial port found — connect a DKU-2/CA-42 cable and try again."
 msgstr "Geen seriële poort gevonden — sluit een DKU-2/CA-42-kabel aan en probeer opnieuw."
+
+msgid "Contacts"
+msgstr "Contacten"
+
+msgid "Fetching contacts…"
+msgstr "Contacten ophalen…"
+
+msgid "No contacts."
+msgstr "Geen contacten."

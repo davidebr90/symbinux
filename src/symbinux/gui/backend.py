@@ -273,6 +273,72 @@ def scan_bluetooth(duration: int = 8) -> list[BluetoothDevice]:
     return devices
 
 
+def pull_contacts_pbap(address: str, timeout: float = 30.0) -> str:
+    """Pull a phone's contacts over Bluetooth PBAP via BlueZ obexd (D-Bus).
+
+    Returns the phonebook as vCard text. Requires the device to be paired and the
+    obexd session daemon running. Raises `BackendUnavailable` with actionable
+    text when the stack isn't present — never a fake result.
+
+    NOTE: this drives the standard `org.bluez.obex` API; it needs real Bluetooth
+    hardware + a paired phone to exercise and has not been validated on-device.
+    """
+    try:
+        import dbus  # python3-dbus
+    except ImportError as exc:
+        raise BackendUnavailable(
+            "python3-dbus is required for Bluetooth contacts (install python3-dbus)."
+        ) from exc
+
+    import tempfile
+    import time
+
+    try:
+        bus = dbus.SessionBus()
+        obex = bus.get_object("org.bluez.obex", "/org/bluez/obex")
+        client = dbus.Interface(obex, "org.bluez.obex.Client1")
+        session_path = client.CreateSession(address, {"Target": dbus.String("pbap")})
+        pbap = dbus.Interface(
+            bus.get_object("org.bluez.obex", session_path),
+            "org.bluez.obex.PhonebookAccess1",
+        )
+        pbap.Select("int", "pb")
+
+        with tempfile.NamedTemporaryFile(suffix=".vcf", delete=False) as tmp:
+            target = tmp.name
+        transfer_path, _props = pbap.PullAll(target, dbus.Dictionary({}, signature="sv"))
+
+        # Poll the transfer until it completes or errors.
+        transfer_props = dbus.Interface(
+            bus.get_object("org.bluez.obex", transfer_path),
+            "org.freedesktop.DBus.Properties",
+        )
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            status = str(transfer_props.Get("org.bluez.obex.Transfer1", "Status"))
+            if status == "complete":
+                break
+            if status == "error":
+                raise BackendUnavailable("Bluetooth contact transfer failed.")
+            time.sleep(0.2)
+
+        try:
+            with open(target, encoding="utf-8", errors="replace") as fh:
+                return fh.read()
+        finally:
+            try:
+                os.unlink(target)
+            except OSError:
+                pass
+    except BackendUnavailable:
+        raise
+    except Exception as exc:  # dbus.DBusException and friends
+        raise BackendUnavailable(
+            f"Bluetooth contacts unavailable ({exc}). Pair the phone and make sure "
+            f"obexd is running."
+        ) from exc
+
+
 def scan_wifi(timeout: float = 20.0) -> list[WifiNetwork]:
     """Scan for Wi-Fi networks via NetworkManager (`nmcli`).
 

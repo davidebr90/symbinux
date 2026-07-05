@@ -28,6 +28,20 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   (progetti simili + backlog di funzioni prioritizzato) e `docs/CROSS_PLATFORM.md`
   (matrice di compatibilità Linux/Windows/macOS + strategia). La roadmap è
   aggiornata col backlog.
+- **Risolutore porta seriale** (`symbinux-transport::ports`) + comando CLI
+  `ports`: mappa un telefono/cavo rilevato sulla sua porta seriale in modo
+  multipiattaforma. Il pulsante **Identifica della GUI ora esegue un identify
+  reale** end-to-end e mostra modello/firmware decodificati, risolvendo la porta
+  automaticamente (o un onesto "nessuna porta").
+- **Contatti Bluetooth (PBAP)**: i telefoni accoppiati espongono un'azione
+  "Contatti" che scarica la rubrica in vCard via BlueZ obexd. Implementato
+  secondo l'API standard `org.bluez.obex`; richiede hardware Bluetooth reale +
+  obexd per la validazione.
+- **Decodifica SMS/vCard** (`symbinux-protocol::decode`): unpacking GSM 7-bit,
+  decodifica numeri BCD, parser PDU SMS-DELIVER ed export vCard 3.0 — i mattoni
+  per le funzioni contatti/SMS (testati).
+- **Workflow CI/release** (`.github/workflows/`): fmt/clippy/test al push, e
+  binari `symbinux-fbus` cross-compilati per Linux/Windows/macOS su tag.
 
 ### Corretto
 - **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le

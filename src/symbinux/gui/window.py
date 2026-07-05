@@ -422,7 +422,28 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             subtitle += " · " + _("paired")
         row = Adw.ActionRow(title=device.name or device.address, subtitle=subtitle)
         row.add_prefix(Gtk.Image.new_from_icon_name("bluetooth-symbolic"))
+        # Pull contacts over PBAP (works for paired phones with obexd running).
+        button = Gtk.Button(label=_("Contacts"), valign=Gtk.Align.CENTER)
+        button.add_css_class("flat")
+        button.connect("clicked", lambda _b, addr=device.address: self._pull_bt_contacts(addr))
+        row.add_suffix(button)
         return row
+
+    def _pull_bt_contacts(self, address: str) -> None:
+        self._progress.indeterminate(_("Fetching contacts…"))
+
+        def work():
+            return backend.pull_contacts_pbap(address)
+
+        def done(vcards):
+            self._progress.finish()
+            self._present_text_dialog(_("Contacts"), vcards.strip() or _("No contacts."))
+
+        def failed(exc):
+            self._progress.finish()
+            self._present_text_dialog(_("Contacts"), str(exc))
+
+        run_async(work, done, failed)
 
     def _wifi_row(self, network) -> Adw.ActionRow:
         row = Adw.ActionRow(

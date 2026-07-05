@@ -26,6 +26,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - New reference docs from a multi-project review: `docs/COMPARISON.md` (prior art
   + prioritised feature backlog) and `docs/CROSS_PLATFORM.md` (Linux/Windows/macOS
   compatibility matrix + strategy). The roadmap is updated with the backlog.
+- **Serial-port resolver** (`symbinux-transport::ports`) + `ports` CLI command:
+  maps a detected phone/cable to its serial port cross-platform. The GUI's
+  **Identify button now runs a real identify** end-to-end and shows the decoded
+  model/firmware, resolving the port automatically (or an honest "no port" note).
+- **Bluetooth contacts (PBAP)**: paired phones expose a "Contacts" action that
+  pulls the phonebook as vCard over BlueZ obexd. Implemented to the standard
+  `org.bluez.obex` API; needs real Bluetooth hardware + obexd to validate.
+- **SMS/vCard decoding** (`symbinux-protocol::decode`): GSM 7-bit unpacking,
+  BCD number decoding, an SMS-DELIVER PDU parser, and vCard 3.0 export — the
+  building blocks for contacts/SMS features (unit-tested).
+- **CI/release workflows** (`.github/workflows/`): fmt/clippy/test on push, and
+  cross-compiled `symbinux-fbus` binaries for Linux/Windows/macOS on tag.
 
 ### Fixed
 - **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty
