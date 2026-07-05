@@ -7,6 +7,20 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-05
+
+### Aggiunto
+- **Selettore tema chiaro/scuro** (menu Aspetto): Automatico / Chiaro / Scuro.
+  In "Automatico" segue la preferenza del desktop (light/dark) tramite libadwaita
+  (portale freedesktop); se il DE non espone la preferenza, ripiega su **Scuro**.
+  Il logo si adatta automaticamente alla variante corretta (blu su chiaro,
+  arancione su scuro). La scelta è persistente.
+- **Internazionalizzazione (gettext)**: interfaccia in **inglese** (sorgente) e
+  **italiano** (`it`), selezionabile dal menu Lingua (Automatico segue il locale
+  di sistema). Infrastruttura `po/` completa (`symbinux.pot`, `it.po`, `LINGUAS`,
+  `compile.sh`, guida per traduttori) predisposta per aggiungere altre lingue.
+- Impostazioni GUI persistite in `~/.config/symbinux/settings.json`.
+
 ## [0.2.0] - 2026-07-05
 
 ### Aggiunto
