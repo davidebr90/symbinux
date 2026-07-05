@@ -276,11 +276,40 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         if key == "advanced":
             self._show_advanced()
             return
-        if key == "identify" and self._selected_device is not None:
-            self._notify(app, _("Identify"),
-                         _("Connect over a serial cable (/dev/ttyUSB*) to read phone identity."))
+        if key == "identify":
+            self._run_identify()
             return
         self._notify(app, label_for(key), _("This function is not wired up yet on this channel."))
+
+    def _run_identify(self) -> None:
+        """Resolve the phone's serial port and run a real identify, off the UI
+        thread, then show the decoded result."""
+        try:
+            port = backend.resolve_port()
+        except backend.BackendUnavailable as exc:
+            self._present_text_dialog(_("Identify"), str(exc))
+            return
+        if port is None:
+            self._present_text_dialog(
+                _("Identify"),
+                _("No serial port found — connect a DKU-2/CA-42 cable and try again."),
+            )
+            return
+
+        self._progress.indeterminate(_("Identifying…"))
+
+        def work():
+            return backend.identify(port)
+
+        def done(output):
+            self._progress.finish()
+            self._present_text_dialog(_("Phone identity"), output.strip() or _("No reply."))
+
+        def failed(exc):
+            self._progress.finish()
+            self._present_text_dialog(_("Identify"), str(exc))
+
+        run_async(work, done, failed)
 
     @staticmethod
     def _notify(app, title: str, body: str) -> None:

@@ -62,6 +62,19 @@ class WifiNetwork:
     security: str
 
 
+@dataclass(frozen=True)
+class SerialPort:
+    path: str
+    vid: str | None
+    pid: str | None
+    product: str | None
+
+
+# USB vendor ids that expose a phone's serial port: Nokia plus common cable
+# bridges (Prolific, Silicon Labs, FTDI, CH340).
+_SERIAL_VIDS = {"0421", "067b", "10c4", "0403", "1a86"}
+
+
 def _find_binary() -> str:
     # 1) explicit override, 2) PATH, 3) local cargo build output (dev)
     env = os.environ.get("SYMBINUX_FBUS_BIN")
@@ -139,6 +152,34 @@ def list_usb_devices(include_all: bool = False) -> list[Device]:
 def identify(port: str) -> str:
     """Run the identify command against a serial port, returning raw output."""
     return _run(["identify", "--port", port], timeout=8.0)
+
+
+def serial_ports() -> list[SerialPort]:
+    """List the serial ports the OS exposes (via the Rust CLI)."""
+    try:
+        data = json.loads(_run(["ports", "--json"]))
+    except (ValueError, TypeError, BackendUnavailable):
+        return []
+    return [
+        SerialPort(
+            path=p.get("path", ""),
+            vid=p.get("vid"),
+            pid=p.get("pid"),
+            product=p.get("product"),
+        )
+        for p in data
+    ]
+
+
+def resolve_port() -> str | None:
+    """Pick the serial port most likely to be the phone: one matching a known
+    phone/cable vendor id, or the sole USB serial port if unambiguous."""
+    ports = serial_ports()
+    for p in ports:
+        if p.vid and p.vid.lower() in _SERIAL_VIDS:
+            return p.path
+    usb = [p for p in ports if p.vid]
+    return usb[0].path if len(usb) == 1 else None
 
 
 def detect_devices(progress_cb=None, timeout: float = 15.0) -> list[DetectedPhone]:

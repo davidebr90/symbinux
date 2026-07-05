@@ -10,10 +10,12 @@ use std::time::{Duration, Instant};
 use symbinux_protocol::{Fbus2Frame, Fbus2Reader};
 
 pub mod enumerate;
+pub mod ports;
 pub mod serial;
 pub mod usb;
 
 pub use enumerate::{list_usb_devices, Role, UsbDeviceInfo};
+pub use ports::{available_serial_ports, resolve_serial_port, SerialPortInfo};
 pub use serial::SerialTransport;
 pub use usb::UsbTransport;
 

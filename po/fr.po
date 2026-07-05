@@ -120,3 +120,15 @@ msgstr "Fermer"
 
 msgid "Talk to legacy Nokia phones over FBUS/MBUS on modern Linux."
 msgstr "Communiquez avec les téléphones Nokia anciens via FBUS/MBUS sur Linux moderne."
+
+msgid "Identifying…"
+msgstr "Identification…"
+
+msgid "Phone identity"
+msgstr "Identité du téléphone"
+
+msgid "No reply."
+msgstr "Aucune réponse."
+
+msgid "No serial port found — connect a DKU-2/CA-42 cable and try again."
+msgstr "Aucun port série trouvé — connectez un câble DKU-2/CA-42 et réessayez."

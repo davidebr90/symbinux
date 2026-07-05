@@ -14,7 +14,9 @@ use serde_json::json;
 use symbinux_devices::{detect_staged, dispatch, DeviceKind};
 use symbinux_protocol::message::{self, MemoryType, Safety};
 use symbinux_protocol::{hw_sw_version, Fbus2Frame};
-use symbinux_transport::{exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport};
+use symbinux_transport::{
+    available_serial_ports, exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport,
+};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -48,6 +50,12 @@ enum Commands {
         #[arg(long)]
         progress: bool,
         /// Emit a JSON array of detected phones instead of text lines.
+        #[arg(long)]
+        json: bool,
+    },
+    /// List the serial ports the OS exposes (with USB ids where known).
+    Ports {
+        /// Emit a JSON array instead of text.
         #[arg(long)]
         json: bool,
     },
@@ -301,6 +309,42 @@ fn cmd_detect(progress: bool, as_json: bool) -> Result<()> {
     Ok(())
 }
 
+fn cmd_ports(as_json: bool) -> Result<()> {
+    let ports = available_serial_ports();
+    if as_json {
+        let arr: Vec<_> = ports
+            .iter()
+            .map(|p| {
+                json!({
+                    "path": p.path,
+                    "vid": p.vendor_id.map(|v| format!("{v:04x}")),
+                    "pid": p.product_id.map(|v| format!("{v:04x}")),
+                    "product": p.product,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&arr)?);
+        return Ok(());
+    }
+    if ports.is_empty() {
+        println!("No serial ports found.");
+        return Ok(());
+    }
+    for p in &ports {
+        let ids = match (p.vendor_id, p.product_id) {
+            (Some(v), Some(d)) => format!("{v:04x}:{d:04x}"),
+            _ => "-".to_string(),
+        };
+        println!(
+            "{:<16} {:<10} {}",
+            p.path,
+            ids,
+            p.product.as_deref().unwrap_or("")
+        );
+    }
+    Ok(())
+}
+
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n {
         s.to_string()
@@ -318,6 +362,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Devices { all, json } => cmd_devices(all, json),
         Commands::Detect { progress, json } => cmd_detect(progress, json),
+        Commands::Ports { json } => cmd_ports(json),
         Commands::Identify { port } => run_command(&port, &message::identify_hw_sw(0x40)),
         Commands::Getphonebook {
             port,

@@ -7,8 +7,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Symbinux 0.4.0\n"
-"Report-Msgid-Bugs-To: https://github.com/davidebr90/symbinux/issues\n"
-"POT-Creation-Date: 2026-07-05 21:05+0200\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-06 00:45+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,7 +17,8 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/symbinux/gui/window.py:43 src/symbinux/gui/window.py:280
+#: src/symbinux/gui/window.py:43 src/symbinux/gui/window.py:290
+#: src/symbinux/gui/window.py:294 src/symbinux/gui/window.py:310
 msgid "Identify"
 msgstr ""
 
@@ -85,77 +86,89 @@ msgstr ""
 msgid "About Symbinux"
 msgstr ""
 
-#: src/symbinux/gui/window.py:281
-msgid "Connect over a serial cable (/dev/ttyUSB*) to read phone identity."
-msgstr ""
-
-#: src/symbinux/gui/window.py:283
+#: src/symbinux/gui/window.py:282
 msgid "This function is not wired up yet on this channel."
 msgstr ""
 
-#: src/symbinux/gui/window.py:311
+#: src/symbinux/gui/window.py:295
+msgid "No serial port found — connect a DKU-2/CA-42 cable and try again."
+msgstr ""
+
+#: src/symbinux/gui/window.py:299
+msgid "Identifying…"
+msgstr ""
+
+#: src/symbinux/gui/window.py:306
+msgid "Phone identity"
+msgstr ""
+
+#: src/symbinux/gui/window.py:306
+msgid "No reply."
+msgstr ""
+
+#: src/symbinux/gui/window.py:340
 msgid "Scanning Bluetooth…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:312
+#: src/symbinux/gui/window.py:341
 msgid "No Bluetooth devices found"
 msgstr ""
 
-#: src/symbinux/gui/window.py:313
+#: src/symbinux/gui/window.py:342
 msgid "Make sure Bluetooth is on and nearby devices are discoverable."
 msgstr ""
 
-#: src/symbinux/gui/window.py:320
+#: src/symbinux/gui/window.py:349
 msgid "Scanning Wi-Fi…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:321
+#: src/symbinux/gui/window.py:350
 msgid "No Wi-Fi networks found"
 msgstr ""
 
-#: src/symbinux/gui/window.py:322
+#: src/symbinux/gui/window.py:351
 msgid "No wireless networks are in range."
 msgstr ""
 
-#: src/symbinux/gui/window.py:328 src/symbinux/gui/window.py:331
+#: src/symbinux/gui/window.py:357 src/symbinux/gui/window.py:360
 msgid "Detecting devices…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:342
+#: src/symbinux/gui/window.py:371
 msgid "Core not available"
 msgstr ""
 
-#: src/symbinux/gui/window.py:349
+#: src/symbinux/gui/window.py:378
 msgid "No phone or cable detected"
 msgstr ""
 
-#: src/symbinux/gui/window.py:351
+#: src/symbinux/gui/window.py:380
 msgid ""
 "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh "
 "button. Use Advanced to inspect every USB device."
 msgstr ""
 
-#: src/symbinux/gui/window.py:393
+#: src/symbinux/gui/window.py:422
 msgid "paired"
 msgstr ""
 
-#: src/symbinux/gui/window.py:417
+#: src/symbinux/gui/window.py:446
 msgid "Scanning USB…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:425
+#: src/symbinux/gui/window.py:454
 msgid "No USB devices visible to the host."
 msgstr ""
 
-#: src/symbinux/gui/window.py:428
+#: src/symbinux/gui/window.py:457
 msgid "Connected USB devices"
 msgstr ""
 
-#: src/symbinux/gui/window.py:432
+#: src/symbinux/gui/window.py:461
 msgid "Advanced diagnostics"
 msgstr ""
 
-#: src/symbinux/gui/window.py:438
+#: src/symbinux/gui/window.py:467
 msgid "Close"
 msgstr ""
 
