@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "symbinux"
+version = "0.1.0"
+description = "Gestione moderna di dispositivi USB/Bluetooth su GNU/Linux - fork di Nokinux"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.11"
+authors = [
+    { name = "Davide Pica" },
+]
+
+dependencies = [
+    "pyudev>=0.24; sys_platform == 'linux'",
+]
+
+[project.optional-dependencies]
+gui = [
+    "PyGObject>=3.48; sys_platform == 'linux'",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+symbinux = "symbinux.gui.main:run"
+symbinux-cli = "symbinux.core.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
