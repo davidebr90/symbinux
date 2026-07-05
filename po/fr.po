@@ -1,0 +1,103 @@
+# French translation for Symbinux.
+# Copyright (C) 2026 Davide Pica
+# This file is distributed under the same license as the Symbinux package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Symbinux 0.3.0\n"
+"Report-Msgid-Bugs-To: https://github.com/davidebr90/symbinux/issues\n"
+"PO-Revision-Date: 2026-07-05 20:30+0200\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Identify"
+msgstr "Identifier"
+
+msgid "Read model, IMEI and firmware"
+msgstr "Lire le modèle, l'IMEI et le firmware"
+
+msgid "Phonebook"
+msgstr "Répertoire"
+
+msgid "Import / export contacts"
+msgstr "Importer / exporter les contacts"
+
+msgid "SMS"
+msgstr "SMS"
+
+msgid "Read and send messages"
+msgstr "Lire et envoyer des messages"
+
+msgid "Netmonitor"
+msgstr "Netmonitor"
+
+msgid "Network diagnostics"
+msgstr "Diagnostic réseau"
+
+msgid "Advanced"
+msgstr "Avancé"
+
+msgid "Raw USB/Bluetooth device list"
+msgstr "Liste brute des périphériques USB/Bluetooth"
+
+msgid "Rescan the selected channel"
+msgstr "Rescanner le canal sélectionné"
+
+msgid "Automatic"
+msgstr "Automatique"
+
+msgid "Light"
+msgstr "Clair"
+
+msgid "Dark"
+msgstr "Sombre"
+
+msgid "Appearance"
+msgstr "Apparence"
+
+msgid "Language"
+msgstr "Langue"
+
+msgid "About Symbinux"
+msgstr "À propos de Symbinux"
+
+msgid "Connect over a serial cable (/dev/ttyUSB*) to read phone identity."
+msgstr "Connectez-vous via un câble série (/dev/ttyUSB*) pour lire l'identité du téléphone."
+
+msgid "This function is not wired up yet on this channel."
+msgstr "Cette fonction n'est pas encore disponible sur ce canal."
+
+#, python-format
+msgid "%s scanning not available yet"
+msgstr "Analyse %s pas encore disponible"
+
+msgid "This channel is on the roadmap. USB is fully supported today."
+msgstr "Ce canal est prévu dans la feuille de route. L'USB est entièrement pris en charge aujourd'hui."
+
+msgid "Core not available"
+msgstr "Cœur non disponible"
+
+msgid "No phone or cable detected"
+msgstr "Aucun téléphone ou câble détecté"
+
+msgid "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh button. Use Advanced to inspect every USB device."
+msgstr "Connectez un téléphone Nokia avec un câble DKU-2/CA-42, puis appuyez sur le bouton d'actualisation. Utilisez Avancé pour inspecter tous les périphériques USB."
+
+msgid "Advanced diagnostics"
+msgstr "Diagnostic avancé"
+
+msgid "No USB devices visible to the host."
+msgstr "Aucun périphérique USB visible pour l'hôte."
+
+msgid "Connected USB devices"
+msgstr "Périphériques USB connectés"
+
+msgid "Close"
+msgstr "Fermer"
+
+msgid "Talk to legacy Nokia phones over FBUS/MBUS on modern Linux."
+msgstr "Communiquez avec les téléphones Nokia anciens via FBUS/MBUS sur Linux moderne."

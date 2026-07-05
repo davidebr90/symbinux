@@ -22,7 +22,12 @@ DOMAIN = "symbinux"
 NATIVE_LANGUAGES: list[tuple[str, str]] = [
     ("auto", "Automatic"),
     ("en", "English"),
+    ("de", "Deutsch"),
+    ("es", "Español"),
+    ("fr", "Français"),
     ("it", "Italiano"),
+    ("nl", "Nederlands"),
+    ("pt", "Português"),
 ]
 
 _current: gettext.NullTranslations = gettext.NullTranslations()

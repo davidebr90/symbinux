@@ -15,10 +15,12 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   (portale freedesktop); se il DE non espone la preferenza, ripiega su **Scuro**.
   Il logo si adatta automaticamente alla variante corretta (blu su chiaro,
   arancione su scuro). La scelta è persistente.
-- **Internazionalizzazione (gettext)**: interfaccia in **inglese** (sorgente) e
-  **italiano** (`it`), selezionabile dal menu Lingua (Automatico segue il locale
-  di sistema). Infrastruttura `po/` completa (`symbinux.pot`, `it.po`, `LINGUAS`,
-  `compile.sh`, guida per traduttori) predisposta per aggiungere altre lingue.
+- **Internazionalizzazione (gettext)**: interfaccia tradotta in **7 lingue** —
+  inglese (sorgente), italiano, tedesco, spagnolo, francese, olandese,
+  portoghese — selezionabili dal menu Lingua (Automatico segue il locale di
+  sistema). Infrastruttura `po/` completa (`symbinux.pot`, un `.po` per lingua,
+  `LINGUAS`, `compile.sh`, guida per traduttori) predisposta per aggiungerne
+  altre.
 - Impostazioni GUI persistite in `~/.config/symbinux/settings.json`.
 
 ## [0.2.0] - 2026-07-05
