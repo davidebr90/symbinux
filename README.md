@@ -1,5 +1,10 @@
 # Symbinux
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/symbinux_logo_white.png">
+  <img alt="Symbinux logo" src="assets/logo/symbinux_logo_black.png" width="320">
+</picture>
+
 Tool moderno per la gestione di dispositivi USB e Bluetooth su GNU/Linux,
 con architettura **Core + GUI** separata e pacchettizzazione Flatpak.
 
