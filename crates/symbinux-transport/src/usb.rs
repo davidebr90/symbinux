@@ -28,9 +28,10 @@ impl UsbTransport {
         ep_in: u8,
         ep_out: u8,
     ) -> Result<Self, TransportError> {
-        let handle = rusb::open_device_with_vid_pid(vid, pid).ok_or_else(|| TransportError::NotFound {
-            what: format!("USB device {vid:04x}:{pid:04x}"),
-        })?;
+        let handle =
+            rusb::open_device_with_vid_pid(vid, pid).ok_or_else(|| TransportError::NotFound {
+                what: format!("USB device {vid:04x}:{pid:04x}"),
+            })?;
 
         // Detach any kernel driver (e.g. cdc-acm/phonet) so we can claim it.
         #[cfg(target_os = "linux")]

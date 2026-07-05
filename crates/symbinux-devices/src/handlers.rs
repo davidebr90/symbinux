@@ -59,7 +59,9 @@ impl DeviceHandler for NokiaLegacyHandler {
         // The real FBUS exchange runs over the serial transport
         // (symbinux-transport::exchange_fbus2); it needs an open /dev/ttyUSB*,
         // which the CLI's `identify`/`getphonebook` commands drive directly.
-        Err(HandlerError::NotSupported("Nokia (use the FBUS serial commands)"))
+        Err(HandlerError::NotSupported(
+            "Nokia (use the FBUS serial commands)",
+        ))
     }
 
     fn disconnect(&mut self) {}
@@ -94,7 +96,11 @@ impl DeviceHandler for AndroidHandler {
     }
 
     fn identify(&self) -> DeviceIdentity {
-        base_identity(&self.device, Platform::Android, format!("mode: {}", self.mode_str()))
+        base_identity(
+            &self.device,
+            Platform::Android,
+            format!("mode: {}", self.mode_str()),
+        )
     }
 
     fn capabilities(&self) -> Vec<Capability> {
@@ -253,18 +259,22 @@ mod tests {
 
     #[test]
     fn dispatch_android_mtp_is_file_transfer_only() {
-        let h = dispatch(detected(0x04e8, 0x6860, vec![
-            InterfaceFingerprint::new(0xff, 0xff, 0x00).with_string("MTP"),
-        ]));
+        let h = dispatch(detected(
+            0x04e8,
+            0x6860,
+            vec![InterfaceFingerprint::new(0xff, 0xff, 0x00).with_string("MTP")],
+        ));
         assert_eq!(h.platform(), Platform::Android);
         assert_eq!(h.capabilities(), vec![Capability::FileTransfer]);
     }
 
     #[test]
     fn dispatch_apple_capabilities() {
-        let h = dispatch(detected(0x05ac, 0x12a8, vec![
-            InterfaceFingerprint::new(0xff, 0xfe, 0x02),
-        ]));
+        let h = dispatch(detected(
+            0x05ac,
+            0x12a8,
+            vec![InterfaceFingerprint::new(0xff, 0xfe, 0x02)],
+        ));
         assert_eq!(h.platform(), Platform::AppleIos);
         assert!(h.capabilities().contains(&Capability::Backup));
         assert!(!h.capabilities().contains(&Capability::Netmonitor));

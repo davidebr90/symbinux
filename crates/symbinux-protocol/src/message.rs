@@ -75,17 +75,35 @@ fn single(name: &'static str, safety: Safety, msg_type: u8, block: &[u8], seq: u
 
 /// Request hardware & software version (firmware, build date, model code).
 pub fn identify_hw_sw(seq: u8) -> Command {
-    single("identify:hw_sw", Safety::Confirmed, MSG_HW_SW, &[0x00, 0x03, 0x00], seq)
+    single(
+        "identify:hw_sw",
+        Safety::Confirmed,
+        MSG_HW_SW,
+        &[0x00, 0x03, 0x00],
+        seq,
+    )
 }
 
 /// Request combined phone info (model / IMEI / HW / SW in one reply).
 pub fn identify_phone_info(seq: u8) -> Command {
-    single("identify:phone_info", Safety::Confirmed, MSG_PHONE_INFO, &[0x00, 0x10], seq)
+    single(
+        "identify:phone_info",
+        Safety::Confirmed,
+        MSG_PHONE_INFO,
+        &[0x00, 0x10],
+        seq,
+    )
 }
 
 /// Request the IMEI via the security/test channel.
 pub fn get_imei(seq: u8) -> Command {
-    single("identify:imei", Safety::Confirmed, MSG_SECURITY, &[0x66], seq)
+    single(
+        "identify:imei",
+        Safety::Confirmed,
+        MSG_SECURITY,
+        &[0x66],
+        seq,
+    )
 }
 
 /// Read a phonebook entry at `location` (1-based) from `mem`.
@@ -102,14 +120,24 @@ pub fn read_phonebook(mem: MemoryType, location: u8, seq: u8) -> Command {
 /// Netmonitor: show screen / control. `field` = `0x00` next screen, `0xF0`
 /// reset, `0xF1` off, otherwise a specific screen number.
 pub fn netmonitor(field: u8, seq: u8) -> Command {
-    single("netmonitor", Safety::Confirmed, MSG_SECURITY, &[0x7E, field], seq)
+    single(
+        "netmonitor",
+        Safety::Confirmed,
+        MSG_SECURITY,
+        &[0x7E, field],
+        seq,
+    )
 }
 
 /// Error building a command from user input.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum CommandError {
     #[error("{field} is too long: {len} bytes (max {max})")]
-    TooLong { field: &'static str, len: usize, max: usize },
+    TooLong {
+        field: &'static str,
+        len: usize,
+        max: usize,
+    },
 }
 
 /// Write a phonebook entry (modifies the phone — experimental).
@@ -126,17 +154,31 @@ pub fn write_phonebook(
     let name_b = name.as_bytes();
     let num_b = number.as_bytes();
     if name_b.len() > 0xFF {
-        return Err(CommandError::TooLong { field: "name", len: name_b.len(), max: 0xFF });
+        return Err(CommandError::TooLong {
+            field: "name",
+            len: name_b.len(),
+            max: 0xFF,
+        });
     }
     if num_b.len() > 0xFF {
-        return Err(CommandError::TooLong { field: "number", len: num_b.len(), max: 0xFF });
+        return Err(CommandError::TooLong {
+            field: "number",
+            len: num_b.len(),
+            max: 0xFF,
+        });
     }
     let mut block = vec![0x00, 0x04, mem as u8, location, name_b.len() as u8];
     block.extend_from_slice(name_b);
     block.push(num_b.len() as u8);
     block.extend_from_slice(num_b);
     block.push(0x00); // caller group, "no group"
-    Ok(single("phonebook:write", Safety::Experimental, MSG_PHONEBOOK, &block, seq))
+    Ok(single(
+        "phonebook:write",
+        Safety::Experimental,
+        MSG_PHONEBOOK,
+        &block,
+        seq,
+    ))
 }
 
 /// The `0x55` wake/sync preamble that must precede the first FBUS/2 frame.
@@ -181,6 +223,13 @@ mod tests {
         assert!(write_phonebook(MemoryType::Phone, 1, "Bob", "+39123", 0x40).is_ok());
         let long = "x".repeat(256);
         let err = write_phonebook(MemoryType::Phone, 1, &long, "1", 0x40).unwrap_err();
-        assert_eq!(err, CommandError::TooLong { field: "name", len: 256, max: 0xFF });
+        assert_eq!(
+            err,
+            CommandError::TooLong {
+                field: "name",
+                len: 256,
+                max: 0xFF
+            }
+        );
     }
 }

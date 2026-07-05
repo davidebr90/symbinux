@@ -54,7 +54,12 @@ pub struct InterfaceFingerprint {
 
 impl InterfaceFingerprint {
     pub fn new(class: u8, subclass: u8, protocol: u8) -> Self {
-        Self { class, subclass, protocol, interface_string: None }
+        Self {
+            class,
+            subclass,
+            protocol,
+            interface_string: None,
+        }
     }
 
     pub fn with_string(mut self, s: &str) -> Self {
@@ -114,9 +119,7 @@ pub fn classify(fp: &UsbFingerprint) -> DeviceKind {
         return DeviceKind::AppleIos;
     }
 
-    if fp.vendor_id == AOA_VID
-        && (AOA_PID_RANGE.0..=AOA_PID_RANGE.1).contains(&fp.product_id)
-    {
+    if fp.vendor_id == AOA_VID && (AOA_PID_RANGE.0..=AOA_PID_RANGE.1).contains(&fp.product_id) {
         return DeviceKind::Android(AndroidMode::Accessory);
     }
 
@@ -146,7 +149,9 @@ pub fn classify(fp: &UsbFingerprint) -> DeviceKind {
 /// True if the fingerprint carries the Apple usbmux interface (a stronger Apple
 /// signal than the vendor id alone; used by the handler before probing lockdown).
 pub fn has_usbmux_interface(fp: &UsbFingerprint) -> bool {
-    fp.interfaces.iter().any(|i| i.triple() == APPLE_USBMUX_IFACE)
+    fp.interfaces
+        .iter()
+        .any(|i| i.triple() == APPLE_USBMUX_IFACE)
 }
 
 /// Whether a device presenting these Apple ids is in a normal (usbmux) mode
@@ -160,12 +165,21 @@ mod tests {
     use super::*;
 
     fn fp(vid: u16, pid: u16, ifaces: Vec<InterfaceFingerprint>) -> UsbFingerprint {
-        UsbFingerprint { vendor_id: vid, product_id: pid, device_class: 0x00, interfaces: ifaces }
+        UsbFingerprint {
+            vendor_id: vid,
+            product_id: pid,
+            device_class: 0x00,
+            interfaces: ifaces,
+        }
     }
 
     #[test]
     fn apple_by_vendor() {
-        let d = fp(APPLE_VID, 0x12a8, vec![InterfaceFingerprint::new(0xff, 0xfe, 0x02)]);
+        let d = fp(
+            APPLE_VID,
+            0x12a8,
+            vec![InterfaceFingerprint::new(0xff, 0xfe, 0x02)],
+        );
         assert_eq!(classify(&d), DeviceKind::AppleIos);
         assert!(has_usbmux_interface(&d));
         assert!(apple_is_usbmux_mode(&d));
@@ -173,32 +187,48 @@ mod tests {
 
     #[test]
     fn android_adb_by_interface() {
-        let d = fp(0x18d1, 0x4ee7, vec![
-            InterfaceFingerprint::new(0xff, 0x42, 0x01),
-        ]);
+        let d = fp(
+            0x18d1,
+            0x4ee7,
+            vec![InterfaceFingerprint::new(0xff, 0x42, 0x01)],
+        );
         assert_eq!(classify(&d), DeviceKind::Android(AndroidMode::Adb));
     }
 
     #[test]
     fn android_fastboot_by_interface() {
-        let d = fp(0x18d1, 0x4ee0, vec![InterfaceFingerprint::new(0xff, 0x42, 0x03)]);
+        let d = fp(
+            0x18d1,
+            0x4ee0,
+            vec![InterfaceFingerprint::new(0xff, 0x42, 0x03)],
+        );
         assert_eq!(classify(&d), DeviceKind::Android(AndroidMode::Fastboot));
     }
 
     #[test]
     fn android_mtp_needs_string() {
-        let with = fp(0x04e8, 0x6860, vec![
-            InterfaceFingerprint::new(0xff, 0xff, 0x00).with_string("MTP"),
-        ]);
+        let with = fp(
+            0x04e8,
+            0x6860,
+            vec![InterfaceFingerprint::new(0xff, 0xff, 0x00).with_string("MTP")],
+        );
         assert_eq!(classify(&with), DeviceKind::Android(AndroidMode::Mtp));
         // Same triple without the "MTP" string is not classified as MTP.
-        let without = fp(0x1234, 0x5678, vec![InterfaceFingerprint::new(0xff, 0xff, 0x00)]);
+        let without = fp(
+            0x1234,
+            0x5678,
+            vec![InterfaceFingerprint::new(0xff, 0xff, 0x00)],
+        );
         assert_eq!(classify(&without), DeviceKind::Unknown);
     }
 
     #[test]
     fn android_ptp() {
-        let d = fp(0x04e8, 0x6865, vec![InterfaceFingerprint::new(0x06, 0x01, 0x01)]);
+        let d = fp(
+            0x04e8,
+            0x6865,
+            vec![InterfaceFingerprint::new(0x06, 0x01, 0x01)],
+        );
         assert_eq!(classify(&d), DeviceKind::Android(AndroidMode::Ptp));
     }
 
@@ -216,7 +246,11 @@ mod tests {
 
     #[test]
     fn unknown_device() {
-        let d = fp(0x1d6b, 0x0003, vec![InterfaceFingerprint::new(0x09, 0x00, 0x00)]);
+        let d = fp(
+            0x1d6b,
+            0x0003,
+            vec![InterfaceFingerprint::new(0x09, 0x00, 0x00)],
+        );
         assert_eq!(classify(&d), DeviceKind::Unknown);
     }
 }

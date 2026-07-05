@@ -17,7 +17,9 @@ pub mod fbus2;
 pub mod mbus;
 pub mod message;
 
-pub use decode::{hw_sw_version, HwSwVersion};
+pub use decode::{
+    decode_sms_deliver, gsm7_unpack, hw_sw_version, HwSwVersion, PhonebookEntry, Sms,
+};
 pub use fbus2::{Fbus2Error, Fbus2Frame};
 pub use mbus::{MbusError, MbusFrame};
 pub use message::{Command, MemoryType, Safety};

@@ -8,6 +8,65 @@
 use crate::fbus2::Fbus2Frame;
 use crate::message::MSG_HW_SW_RESP;
 
+// --- GSM 03.38 / 03.40 primitives (reused by SMS decoding) ------------------
+
+/// Map a GSM default-alphabet septet to a char. This covers the ASCII-compatible
+/// subset that legacy contact names and messages use in practice; the handful of
+/// accented/special GSM code points that differ from ASCII fall back to '?'.
+/// The 7-bit *unpacking* below is exact; only the alphabet mapping is simplified.
+fn gsm_default_char(septet: u8) -> char {
+    match septet {
+        0x00 => '@',
+        0x0A => '\n',
+        0x0D => '\r',
+        0x20..=0x3F | 0x41..=0x5A | 0x61..=0x7A => septet as char,
+        _ => '?',
+    }
+}
+
+/// Unpack `septets` GSM 7-bit packed characters (LSB-first, GSM 03.38 packing)
+/// from `packed` into a String. The bit unpacking is exact and unit-tested
+/// against the canonical "hello" = `E8 32 9B FD 06` vector.
+pub fn gsm7_unpack(packed: &[u8], septets: usize) -> String {
+    let mut out = String::with_capacity(septets);
+    let mut buffer: u32 = 0;
+    let mut bits = 0u32;
+    for &byte in packed {
+        buffer |= (byte as u32) << bits;
+        bits += 8;
+        while bits >= 7 && out.len() < septets {
+            out.push(gsm_default_char((buffer & 0x7F) as u8));
+            buffer >>= 7;
+            bits -= 7;
+        }
+    }
+    out
+}
+
+/// Decode a semi-octet (BCD) phone number of `digit_count` digits, as used in
+/// SMS address fields and BCD number encodings. High nibble of each octet is the
+/// second digit; `0xF` padding is dropped.
+pub fn decode_semi_octets(octets: &[u8], digit_count: usize) -> String {
+    let mut s = String::with_capacity(digit_count);
+    for &o in octets {
+        let low = o & 0x0F;
+        if low != 0x0F {
+            s.push((b'0' + low) as char);
+        }
+        if s.len() >= digit_count {
+            break;
+        }
+        let high = o >> 4;
+        if high != 0x0F {
+            s.push((b'0' + high) as char);
+        }
+        if s.len() >= digit_count {
+            break;
+        }
+    }
+    s
+}
+
 /// Hardware & software identity parsed from a `0xD2` reply.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HwSwVersion {
@@ -40,12 +99,127 @@ pub fn hw_sw_version(frame: &Fbus2Frame) -> Option<HwSwVersion> {
     if firmware.is_empty() && model.is_empty() {
         return None;
     }
-    Some(HwSwVersion { firmware, date, model })
+    Some(HwSwVersion {
+        firmware,
+        date,
+        model,
+    })
+}
+
+// --- Phonebook entry + vCard ------------------------------------------------
+
+/// A single phonebook entry, platform-neutral.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhonebookEntry {
+    pub name: String,
+    pub number: String,
+    /// Source memory (e.g. "ME", "SIM").
+    pub memory: String,
+    /// 1-based location.
+    pub location: u8,
+}
+
+impl PhonebookEntry {
+    /// Render as a vCard 3.0 record (the interchange format gnokii/gammu use).
+    pub fn to_vcard(&self) -> String {
+        format!(
+            "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:{}\r\nTEL:{}\r\nEND:VCARD\r\n",
+            self.name, self.number
+        )
+    }
+}
+
+// --- SMS (3GPP TS 23.040 SMS-DELIVER) ---------------------------------------
+
+/// A decoded incoming text message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Sms {
+    pub sender: String,
+    pub text: String,
+}
+
+/// Decode an SMS-DELIVER PDU (the format a phone stores received messages in).
+/// Handles the SMSC prefix, sender address (semi-octet + type-of-address), and
+/// 7-bit GSM or 8-bit user data. Returns `None` on a malformed/short PDU.
+pub fn decode_sms_deliver(pdu: &[u8]) -> Option<Sms> {
+    let mut i = 0usize;
+    // SMSC: length byte + that many octets.
+    let smsc_len = *pdu.get(i)? as usize;
+    i += 1 + smsc_len;
+    // PDU type (first-octet flags).
+    let _first = *pdu.get(i)?;
+    i += 1;
+    // Sender address: digit count, type-of-address, then ceil(n/2) octets.
+    let digits = *pdu.get(i)? as usize;
+    i += 1;
+    let toa = *pdu.get(i)?;
+    i += 1;
+    let addr_octets = digits.div_ceil(2);
+    let addr = pdu.get(i..i + addr_octets)?;
+    i += addr_octets;
+    let mut sender = decode_semi_octets(addr, digits);
+    if (toa & 0x70) == 0x10 {
+        sender.insert(0, '+'); // international type-of-number
+    }
+    // PID, DCS.
+    let _pid = *pdu.get(i)?;
+    i += 1;
+    let dcs = *pdu.get(i)?;
+    i += 1;
+    // Service-centre timestamp: 7 octets.
+    i += 7;
+    // User-data length (septets for 7-bit) + user data.
+    let udl = *pdu.get(i)? as usize;
+    i += 1;
+    let ud = pdu.get(i..)?;
+    let text = if dcs & 0x0C == 0x00 {
+        gsm7_unpack(ud, udl)
+    } else {
+        String::from_utf8_lossy(ud).into_owned()
+    };
+    Some(Sms { sender, text })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gsm7_unpacks_hello() {
+        assert_eq!(gsm7_unpack(&[0xE8, 0x32, 0x9B, 0xFD, 0x06], 5), "hello");
+    }
+
+    #[test]
+    fn semi_octets_decode() {
+        assert_eq!(decode_semi_octets(&[0x21, 0x43], 4), "1234");
+        assert_eq!(decode_semi_octets(&[0x21, 0xF3], 3), "123");
+    }
+
+    #[test]
+    fn vcard_export() {
+        let e = PhonebookEntry {
+            name: "Bob".into(),
+            number: "+39123".into(),
+            memory: "ME".into(),
+            location: 1,
+        };
+        let v = e.to_vcard();
+        assert!(v.contains("FN:Bob"));
+        assert!(v.contains("TEL:+39123"));
+        assert!(v.starts_with("BEGIN:VCARD"));
+    }
+
+    #[test]
+    fn decodes_synthetic_sms_deliver() {
+        // Controlled SMS-DELIVER: no SMSC, sender +1234 (intl), 7-bit "hello".
+        let pdu = [
+            0x00, 0x04, 0x04, 0x91, 0x21, 0x43, 0x00, 0x00, 0x22, 0x70, 0x60, 0x21, 0x22, 0x74,
+            0x00, 0x05, 0xE8, 0x32, 0x9B, 0xFD, 0x06,
+        ];
+        let sms = decode_sms_deliver(&pdu).expect("decoded");
+        assert_eq!(sms.sender, "+1234");
+        assert_eq!(sms.text, "hello");
+    }
 
     #[test]
     fn decodes_real_3310_hw_sw_reply() {

@@ -53,7 +53,7 @@ enum Commands {
     },
     /// Query the phone's hardware and software version.
     Identify {
-        /// Serial port, e.g. /dev/ttyUSB0 or /dev/nokia_fbus.
+        /// Serial port (Linux: /dev/ttyUSB0 or /dev/nokia_fbus; Windows: COM3).
         #[arg(long)]
         port: String,
     },
@@ -134,8 +134,8 @@ fn run_command(port: &str, cmd: &message::Command) -> Result<()> {
             cmd.name
         );
     }
-    let mut link = SerialTransport::open_fbus(port)
-        .with_context(|| format!("opening serial port {port}"))?;
+    let mut link =
+        SerialTransport::open_fbus(port).with_context(|| format!("opening serial port {port}"))?;
 
     // Wake the phone's UART and lock framing.
     link.write_all(&message::fbus_init_preamble(128))
@@ -153,13 +153,22 @@ fn run_command(port: &str, cmd: &message::Command) -> Result<()> {
             println!("← ACK");
         } else {
             got_data = true;
-            println!("← reply msg_type={:#04x} : {}", f.msg_type, hexdump(&f.data));
+            println!(
+                "← reply msg_type={:#04x} : {}",
+                f.msg_type,
+                hexdump(&f.data)
+            );
             // Typed decode of known replies.
             if let Some(v) = hw_sw_version(f) {
-                println!("  model={} firmware={} date={}", v.model, v.firmware, v.date);
+                println!(
+                    "  model={} firmware={} date={}",
+                    v.model, v.firmware, v.date
+                );
             } else if let Ok(text) = std::str::from_utf8(&f.data) {
-                let printable: String =
-                    text.chars().filter(|c| !c.is_control() || *c == '\n').collect();
+                let printable: String = text
+                    .chars()
+                    .filter(|c| !c.is_control() || *c == '\n')
+                    .collect();
                 if printable.trim().len() > 2 {
                     println!("  as text: {}", printable.trim());
                 }
@@ -236,7 +245,10 @@ fn cmd_detect(progress: bool, as_json: bool) -> Result<()> {
     .context("USB detection")?;
 
     // Report only phones/handsets; skip hubs and unrelated peripherals.
-    let recognised: Vec<_> = devices.into_iter().filter(|d| d.kind() != DeviceKind::Unknown).collect();
+    let recognised: Vec<_> = devices
+        .into_iter()
+        .filter(|d| d.kind() != DeviceKind::Unknown)
+        .collect();
 
     if as_json {
         let arr: Vec<_> = recognised
@@ -307,7 +319,11 @@ fn main() -> Result<()> {
         Commands::Devices { all, json } => cmd_devices(all, json),
         Commands::Detect { progress, json } => cmd_detect(progress, json),
         Commands::Identify { port } => run_command(&port, &message::identify_hw_sw(0x40)),
-        Commands::Getphonebook { port, mem, location } => {
+        Commands::Getphonebook {
+            port,
+            mem,
+            location,
+        } => {
             let mem = parse_mem(&mem)?;
             run_command(&port, &message::read_phonebook(mem, location, 0x40))
         }
@@ -315,7 +331,12 @@ fn main() -> Result<()> {
             let field = if screen == 255 { 0x00 } else { screen };
             run_command(&port, &message::netmonitor(field, 0x40))
         }
-        Commands::Raw { port, msg_type, block, i_understand_risk } => {
+        Commands::Raw {
+            port,
+            msg_type,
+            block,
+            i_understand_risk,
+        } => {
             if !i_understand_risk {
                 bail!("raw mode can send arbitrary frames; re-run with --i-understand-risk");
             }

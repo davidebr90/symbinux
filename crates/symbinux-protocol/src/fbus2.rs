@@ -34,7 +34,9 @@ pub enum Fbus2Error {
     BadFrameId(u8),
     #[error("declared length {declared} does not fit in {available} available bytes")]
     LengthOverflow { declared: usize, available: usize },
-    #[error("checksum mismatch: computed ({c1:#04x},{c2:#04x}), frame carried ({f1:#04x},{f2:#04x})")]
+    #[error(
+        "checksum mismatch: computed ({c1:#04x},{c2:#04x}), frame carried ({f1:#04x},{f2:#04x})"
+    )]
     BadChecksum { c1: u8, c2: u8, f1: u8, f2: u8 },
 }
 

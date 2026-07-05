@@ -42,7 +42,10 @@ impl DeviceManager {
         match self.seen.insert(device.port.clone(), kind) {
             None => Transition::Arrived(kind),
             Some(prev) if prev == kind => Transition::Unchanged(kind),
-            Some(prev) => Transition::Switched { from: prev, to: kind },
+            Some(prev) => Transition::Switched {
+                from: prev,
+                to: kind,
+            },
         }
     }
 
@@ -82,7 +85,12 @@ mod tests {
     fn dev(port: PortKey, vid: u16, pid: u16, ifaces: Vec<InterfaceFingerprint>) -> DetectedDevice {
         DetectedDevice {
             port,
-            fingerprint: UsbFingerprint { vendor_id: vid, product_id: pid, device_class: 0, interfaces: ifaces },
+            fingerprint: UsbFingerprint {
+                vendor_id: vid,
+                product_id: pid,
+                device_class: 0,
+                interfaces: ifaces,
+            },
             manufacturer: None,
             product: None,
             serial: None,
@@ -95,8 +103,16 @@ mod tests {
         let mut mgr = DeviceManager::new();
 
         // Android in ADB mode.
-        let adb = dev(port.clone(), 0x18d1, 0x4ee7, vec![InterfaceFingerprint::new(0xff, 0x42, 0x01)]);
-        assert_eq!(mgr.observe(&adb), Transition::Arrived(DeviceKind::Android(AndroidMode::Adb)));
+        let adb = dev(
+            port.clone(),
+            0x18d1,
+            0x4ee7,
+            vec![InterfaceFingerprint::new(0xff, 0x42, 0x01)],
+        );
+        assert_eq!(
+            mgr.observe(&adb),
+            Transition::Arrived(DeviceKind::Android(AndroidMode::Adb))
+        );
 
         // Same physical port re-enumerates as an AOA accessory (new PID).
         let acc = dev(port.clone(), 0x18d1, 0x2d01, vec![]);
@@ -116,6 +132,9 @@ mod tests {
         let nokia = dev(port.clone(), 0x0421, 0x0400, vec![]);
         mgr.sync(&[nokia]);
         let transitions = mgr.sync(&[]);
-        assert_eq!(transitions, vec![(port, Transition::Departed(DeviceKind::NokiaLegacy))]);
+        assert_eq!(
+            transitions,
+            vec![(port, Transition::Departed(DeviceKind::NokiaLegacy))]
+        );
     }
 }

@@ -57,3 +57,24 @@ effort from shipping the CLI cross-platform.
 
 **Bottom line:** the cross-platform ceiling is entirely in the GUI layer, not
 the core.
+
+## Building for Windows and macOS
+
+The CLI cross-compiles per target (`-p symbinux-cli` builds the `symbinux-fbus`
+binary). CI does this automatically on a `v*` tag (see `.github/workflows/`).
+
+```sh
+# Linux
+cargo build --release --target x86_64-unknown-linux-gnu -p symbinux-cli
+# Windows
+cargo build --release --target x86_64-pc-windows-msvc -p symbinux-cli
+# macOS (Apple Silicon)
+cargo build --release --target aarch64-apple-darwin -p symbinux-cli
+```
+
+- **Windows serial:** a DKU-2/CA-42 cable enumerates as a COM port with inbox or
+  vendor serial drivers — no extra driver needed. Only the raw-USB/BB5 path needs
+  a WinUSB driver bound via [Zadig](https://zadig.akeo.ie/).
+- **Optional:** migrating the USB layer from `rusb` to
+  [`nusb`](https://github.com/kevinmehall/nusb) drops the libusb C dependency on
+  every platform (single self-contained binary, no `libusb-1.0.dll` to bundle).
