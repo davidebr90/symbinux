@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "symbinux"
 version = "0.1.0"
-description = "Gestione moderna di dispositivi USB/Bluetooth su GNU/Linux - fork di Nokinux"
+description = "Modern USB/Bluetooth device management for GNU/Linux - fork of Nokinux"
 readme = "README.md"
-license = { text = "GPL-3.0-or-later" }
+license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.11"
 authors = [
     { name = "Davide Pica" },

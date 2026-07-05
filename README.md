@@ -1,83 +1,87 @@
 # Symbinux
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/symbinux_logo_white.png">
-  <img alt="Symbinux logo" src="assets/logo/symbinux_logo_black.png" width="320">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/symbinux_logo_transparent_dark.png">
+  <img alt="Symbinux logo" src="assets/logo/symbinux_logo_transparent_light.png" width="320">
 </picture>
 
-Tool moderno per la gestione di dispositivi USB e Bluetooth su GNU/Linux,
-con architettura **Core + GUI** separata e pacchettizzazione Flatpak.
+*[Leggi questo documento in italiano](README.it.md)*
 
-**Symbinux è un fork dichiarato di [Nokinux](https://launchpad.net/nokinux)**
-(2008-2010), progetto Bash/Python nato in seno alla comunità Ubuntu italiana
-per configurare cellulari Nokia da Linux, di cui Davide Pica (davidebr90) è
-stato tra gli autori originali insieme ad altri contributori. Lo scopo di
-Nokinux è ormai superato dall'evoluzione dei dispositivi mobili; Symbinux ne
-riprende il nome e lo spirito riscrivendolo da zero secondo gli standard
-applicativi Linux attuali (architettura Core + GUI separata, packaging
-Flatpak) e generalizzandone lo scopo alla gestione di qualsiasi dispositivo
-USB/Bluetooth moderno.
+Modern USB and Bluetooth device management for GNU/Linux, built with a
+separated **Core + GUI** architecture and Flatpak packaging.
 
-## Architettura
+**Symbinux is a declared fork of [Nokinux](https://launchpad.net/nokinux)**
+(2008-2010), a Bash/Python project born in the Italian Ubuntu community to
+configure Nokia phones from Linux, of which Davide Pica (davidebr90) was one
+of the original authors alongside other contributors. Nokinux's original
+purpose has long been overtaken by the evolution of mobile devices; Symbinux
+carries its name and spirit forward, rewritten from scratch to today's Linux
+application standards (separated Core + GUI architecture, Flatpak
+packaging) and generalized to managing any modern USB/Bluetooth device.
+
+## Architecture
 
 ```
 symbinux/
-├── core/           # symbinux.core - libreria pura, nessuna dipendenza GUI
-│   ├── devices.py  # rilevamento USB (pyudev)
-│   └── bluetooth.py# integrazione Bluetooth (BlueZ via D-Bus)
-├── gui/            # symbinux.gui - frontend GTK4 + libadwaita
-│   ├── main.py
-│   └── window.py
+├── src/symbinux/
+│   ├── core/       # symbinux.core - pure library, no GUI dependency
+│   │   ├── devices.py    # USB detection (pyudev)
+│   │   └── bluetooth.py  # Bluetooth integration (BlueZ over D-Bus)
+│   └── gui/        # symbinux.gui - GTK4 + libadwaita frontend
+│       ├── main.py
+│       └── window.py
 ├── packaging/
-│   └── flatpak/    # manifest Flatpak per la distribuzione
+│   └── flatpak/    # Flatpak manifest for distribution
 ├── tests/
 └── pyproject.toml
 ```
 
-Il Core è una libreria Python indipendente e testabile via CLI/headless.
-La GUI è un layer separato che consuma il Core: nessuna logica di business
-nella GUI, nessuna dipendenza GTK nel Core.
+The Core is an independent, headless-testable Python library. The GUI is a
+separate layer that consumes the Core: no business logic in the GUI, no GTK
+dependency in the Core.
 
-## Requisiti
+## Requirements
 
 - Python >= 3.11
-- Linux con `udev` e (opzionale) `bluez` per le funzionalità reali
-- Per la GUI: GTK4 e libadwaita (`gir1.2-gtk-4.0`, `gir1.2-adw-1` su Debian/Ubuntu)
+- Linux with `udev` and (optionally) `bluez` for real functionality
+- For the GUI: GTK4 and libadwaita (`gir1.2-gtk-4.0`, `gir1.2-adw-1` on
+  Debian/Ubuntu)
 
-## Sviluppo
+## Development
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[gui,dev]"
 
-# Solo core (headless, niente dipendenze GUI)
+# Core only (headless, no GUI dependencies)
 pip install -e .
 
-# Test
+# Tests
 pytest
 ```
 
-## Nota sull'ambiente di sviluppo
+## Note on the development environment
 
-Il Core e la GUI dipendono da librerie Linux (`pyudev`, GTK4/libadwaita via
-D-Bus/GObject) e **non girano su Windows**. Lo sviluppo/test va fatto su una
-macchina Linux reale o in **WSL2** con un ambiente desktop (o X11/Wayland
-forwarding).
+The Core and GUI depend on Linux-specific libraries (`pyudev`, GTK4/libadwaita
+over D-Bus/GObject) and **do not run on Windows**. Development and testing
+must happen on a real Linux machine or in **WSL2** with a desktop environment
+(or X11/Wayland forwarding).
 
 ## Packaging
 
-Il manifest Flatpak si trova in `packaging/flatpak/`. Build locale:
+The Flatpak manifest lives in `packaging/flatpak/`. Local build:
 
 ```bash
 flatpak-builder build-dir packaging/flatpak/it.davidebr90.Symbinux.yml --force-clean
 ```
 
-## Licenza
+## License
 
-GPLv3, in continuità con la licenza del progetto originale Nokinux.
-Vedi [LICENSE](LICENSE).
+**GNU AGPLv3** (GNU Affero General Public License v3, or later). Chosen over
+plain GPL to also cover network/SaaS use of the code, not just distribution.
+See [LICENSE](LICENSE).
 
 ## Changelog
 
-Vedi [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md).
