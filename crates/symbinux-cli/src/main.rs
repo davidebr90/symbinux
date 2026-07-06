@@ -14,7 +14,7 @@ use serde_json::json;
 
 use symbinux_devices::{detect_staged, dispatch, DeviceKind};
 use symbinux_protocol::message::{self, MemoryType, Safety};
-use symbinux_protocol::{hw_sw_version, reassemble_fbus2, Fbus2Frame};
+use symbinux_protocol::{decode_sms_deliver, hw_sw_version, reassemble_fbus2, Fbus2Frame};
 use symbinux_transport::{
     available_serial_ports, exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport,
     UsbTransport,
@@ -82,6 +82,18 @@ enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+    /// Print the man page (roff) to stdout.
+    Man,
+    /// Decode a captured FBUS/2 frame from hex (offline, no device needed).
+    DecodeFrame {
+        /// The frame bytes as hex, e.g. "1E 0C 00 7F 00 02 D1 00 CF 71".
+        hex: String,
+    },
+    /// Decode a captured SMS-DELIVER PDU from hex (offline, no device needed).
+    DecodeSms {
+        /// The PDU bytes as hex.
+        hex: String,
+    },
     /// Read a phonebook entry.
     Getphonebook {
         #[arg(long)]
@@ -129,6 +141,63 @@ fn parse_hex_bytes(s: &str) -> Result<Vec<u8>> {
             u8::from_str_radix(tok, 16).with_context(|| format!("invalid hex byte '{tok}'"))
         })
         .collect()
+}
+
+/// Parse hex bytes, tolerating spaces and separators (e.g. "1E0C" or "1E 0C").
+fn parse_hex_flexible(s: &str) -> Result<Vec<u8>> {
+    let compact: String = s.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    if compact.len() % 2 != 0 {
+        bail!("hex string has an odd number of digits");
+    }
+    (0..compact.len())
+        .step_by(2)
+        .map(|i| {
+            u8::from_str_radix(&compact[i..i + 2], 16)
+                .with_context(|| format!("invalid hex byte at offset {i}"))
+        })
+        .collect()
+}
+
+fn cmd_decode_frame(hex: &str) -> Result<()> {
+    let bytes = parse_hex_flexible(hex)?;
+    let (frame, used) =
+        Fbus2Frame::decode(&bytes).map_err(|e| anyhow::anyhow!("not a valid FBUS/2 frame: {e}"))?;
+    println!(
+        "dest={:#04x} src={:#04x} msg_type={:#04x}  ({used} bytes)",
+        frame.dest, frame.src, frame.msg_type
+    );
+    if frame.is_ack() {
+        // ACK payload is [acked_msg_type, acked_seq], not a normal block.
+        let acked = frame.data.first().copied().unwrap_or(0);
+        println!("(acknowledgement of msg {acked:#04x})");
+    } else {
+        match frame.block_parts() {
+            Some((block, frames_to_go, seq)) => println!(
+                "block={}  frames_to_go={frames_to_go} seq={seq:#04x}",
+                hexdump(block)
+            ),
+            None => println!("data={}", hexdump(&frame.data)),
+        }
+        if let Some(v) = hw_sw_version(&frame) {
+            println!(
+                "decoded: model={} firmware={} date={}",
+                v.model, v.firmware, v.date
+            );
+        }
+    }
+    Ok(())
+}
+
+fn cmd_decode_sms(hex: &str) -> Result<()> {
+    let bytes = parse_hex_flexible(hex)?;
+    match decode_sms_deliver(&bytes) {
+        Some(sms) => {
+            println!("from: {}", sms.sender);
+            println!("text: {}", sms.text);
+            Ok(())
+        }
+        None => bail!("could not decode the input as an SMS-DELIVER PDU"),
+    }
 }
 
 fn parse_mem(s: &str) -> Result<MemoryType> {
@@ -436,6 +505,14 @@ fn main() -> Result<()> {
             clap_complete::generate(shell, &mut cmd, "symbinux-fbus", &mut std::io::stdout());
             Ok(())
         }
+        Commands::Man => {
+            clap_mangen::Man::new(Cli::command())
+                .render(&mut std::io::stdout())
+                .context("rendering man page")?;
+            Ok(())
+        }
+        Commands::DecodeFrame { hex } => cmd_decode_frame(&hex),
+        Commands::DecodeSms { hex } => cmd_decode_sms(&hex),
         Commands::Getphonebook {
             port,
             mem,
