@@ -24,8 +24,8 @@ gnokii DKU-2/libusb documentation.
 | Cable / phone | Linux enumeration | Access | Confidence |
 |---|---|---|---|
 | DKU-5 / CA-42 / clones (FTDI, CP210x, PL2303) | `/dev/ttyUSB*` via `ftdi_sio` / `cp210x` / `pl2303` | serial (termios) | CONFIRMED (that they are ttyUSB); per-unit driver LIKELY |
-| DKU-2 native USB (Series 40/60) | raw USB device, VID `0x0421` | libusb bulk endpoints | CONFIRMED |
-| BB5 phones | raw USB bulk (PhoNet) | libusb | LIKELY |
+| DKU-2 native USB (Series 40/60) | raw USB device, VID `0x0421` | raw USB bulk endpoints (`nusb`) | CONFIRMED |
+| BB5 phones | raw USB bulk (PhoNet) | raw USB (`nusb`) | LIKELY |
 
 Serial line settings for FBUS on cable: **115200 baud, 8N1, no flow control**,
 control lines **DTR high / RTS low**. CONFIRMED.

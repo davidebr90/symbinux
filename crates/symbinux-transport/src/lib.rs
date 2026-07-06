@@ -32,7 +32,9 @@ pub enum TransportError {
     #[error("i/o error: {0}")]
     Io(#[from] std::io::Error),
     #[error("usb error: {0}")]
-    Usb(#[from] rusb::Error),
+    Usb(#[from] nusb::Error),
+    #[error("usb transfer error: {0}")]
+    Transfer(#[from] nusb::transfer::TransferError),
     #[error("timed out waiting for a reply from the phone")]
     Timeout,
 }

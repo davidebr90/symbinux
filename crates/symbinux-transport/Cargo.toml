@@ -13,7 +13,7 @@ symbinux-protocol.workspace = true
 thiserror.workspace = true
 log.workspace = true
 serialport = "4.5"
-rusb = "0.9"
+nusb = "0.2"
 
 [lib]
 name = "symbinux_transport"

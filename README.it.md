@@ -42,7 +42,7 @@ classi di sicurezza.
 symbinux/
 ├── crates/                     # workspace Rust (il core)
 │   ├── symbinux-protocol/      # framing FBUS/MBUS — puro, senza I/O, testato
-│   ├── symbinux-transport/     # seriale (termios) + USB raw (libusb), enumerazione
+│   ├── symbinux-transport/     # seriale (termios) + USB raw (nusb, Rust puro), enumerazione
 │   └── symbinux-cli/           # `symbinux-fbus`, CLI in stile gnokii
 ├── src/symbinux/               # GUI GTK4 + libadwaita (Python), chiama la CLI
 ├── udev/                       # regole per accesso non privilegiato
@@ -81,7 +81,9 @@ l'app possiede la connessione (claim diretto dell'USB, pairing Bluetooth forzato
 
 ## Requisiti
 
-- Rust ≥ 1.74, `libusb-1.0`, `pkg-config`.
+- Rust ≥ 1.74. Su Linux, `libudev` + `pkg-config` (per l'enumerazione delle porte
+  seriali). Niente libusb — l'accesso USB raw è in Rust puro via
+  [`nusb`](https://docs.rs/nusb).
 - Per la GUI: Python ≥ 3.11, GTK4 e libadwaita (`gir1.2-gtk-4.0`,
   `gir1.2-adw-1` su Debian/Ubuntu).
 - Una macchina Linux reale, o WSL2 con passthrough USB per i test hardware. Il

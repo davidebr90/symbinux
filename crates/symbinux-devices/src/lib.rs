@@ -31,7 +31,7 @@ pub const DETECT_STAGES: &[&str] = &[
 /// Detect and classify all connected devices, reporting real progress as each
 /// stage completes. `progress(done, total, label)` is called with genuine
 /// counts — never a synthetic animation.
-pub fn detect_staged<F>(mut progress: F) -> Result<Vec<DetectedDevice>, rusb::Error>
+pub fn detect_staged<F>(mut progress: F) -> Result<Vec<DetectedDevice>, nusb::Error>
 where
     F: FnMut(usize, usize, &str),
 {

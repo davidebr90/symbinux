@@ -10,8 +10,8 @@ Status of the Symbinux stack and the planned path to broader phone support.
   dual/single checksums, incremental frame reader, named command builders with
   safety classification. Validated against real-capture checksum oracles.
 - **Transport (`symbinux-transport`)** — serial (termios, 115200 8N1) backend,
-  raw USB (libusb) backend skeleton, lsusb-style device enumeration, FBUS/2
-  request/response exchange.
+  raw USB backend via `nusb` (pure Rust, no libusb), lsusb-style device
+  enumeration, FBUS/2 request/response exchange.
 - **Device detection (`symbinux-devices`)** — cascade fingerprinting
   (Nokia/Android/Apple iOS/unknown), `DeviceHandler` strategy with per-platform
   capabilities, port-based tracking across AOA/iOS mode switches.
@@ -26,7 +26,7 @@ Status of the Symbinux stack and the planned path to broader phone support.
   `--json` output on `devices`/`detect`; structured logging (`RUST_LOG`).
 
 - **App-owned USB link (started)** — `symbinux-fbus identify --usb` claims the
-  Nokia device directly via libusb (kernel driver detached, FBUS bulk endpoints
+  Nokia device directly via `nusb` (kernel driver detached, FBUS bulk endpoints
   auto-discovered), so a phone can be reached without any OS serial driver. See
   `docs/CONNECTION_MODEL.md` — the app owns the connection and forces the link,
   rather than depending on OS drivers/daemons.
@@ -69,9 +69,9 @@ The backlog below is prioritised from a multi-project review; see
 
 ## Infrastructure & cross-platform
 
-11. **CLI on Windows/macOS** — the core is already portable; ship
-    `symbinux-fbus` cross-platform, optionally migrating USB to `nusb` to drop
-    the libusb dependency. See `docs/CROSS_PLATFORM.md`.
+11. **CLI on Windows/macOS** — the core is already portable and the USB layer
+    already uses `nusb` (pure Rust, no libusb), so binaries are self-contained;
+    ship `symbinux-fbus` cross-platform. See `docs/CROSS_PLATFORM.md`.
 12. **D-Bus service** (zbus) exposing device state + hotplug events to the GUI
     and other apps, KDE-Connect style — replaces subprocess scraping long-term.
 13. **Android/iOS transfer** — embed `adb_client` (Rust) and `idevice` (Rust)

@@ -11,8 +11,8 @@ Stato dello stack Symbinux e percorso previsto verso un supporto più ampio.
   classificazione di sicurezza. Validato contro oracoli di checksum da catture
   reali.
 - **Trasporto (`symbinux-transport`)** — backend seriale (termios, 115200 8N1),
-  scheletro backend USB raw (libusb), enumerazione dispositivi stile lsusb,
-  scambio richiesta/risposta FBUS/2.
+  backend USB raw via `nusb` (Rust puro, niente libusb), enumerazione dispositivi
+  stile lsusb, scambio richiesta/risposta FBUS/2.
 - **Rilevamento dispositivi (`symbinux-devices`)** — fingerprinting a cascata
   (Nokia/Android/Apple iOS/sconosciuto), strategy `DeviceHandler` con capability
   per piattaforma, tracciamento per porta attraverso gli switch di modalità
@@ -30,7 +30,7 @@ Stato dello stack Symbinux e percorso previsto verso un supporto più ampio.
   (`RUST_LOG`).
 
 - **Link USB app-owned (iniziato)** — `symbinux-fbus identify --usb` fa claim
-  diretto del dispositivo Nokia via libusb (driver kernel staccato, endpoint bulk
+  diretto del dispositivo Nokia via `nusb` (driver kernel staccato, endpoint bulk
   FBUS auto-scoperti), così un telefono è raggiungibile senza alcun driver
   seriale del SO. Vedi `docs/CONNECTION_MODEL.md` — l'app possiede la connessione
   e forza il link, invece di dipendere da driver/demoni del SO.
@@ -77,9 +77,9 @@ portabilità.
 
 ## Infrastruttura e multipiattaforma
 
-11. **CLI su Windows/macOS** — il core è già portabile; distribuire
-    `symbinux-fbus` multipiattaforma, eventualmente migrando l'USB a `nusb` per
-    eliminare la dipendenza libusb. Vedi `docs/CROSS_PLATFORM.md`.
+11. **CLI su Windows/macOS** — il core è già portabile e il layer USB usa già
+    `nusb` (Rust puro, niente libusb), quindi i binari sono self-contained;
+    distribuire `symbinux-fbus` multipiattaforma. Vedi `docs/CROSS_PLATFORM.md`.
 12. **Servizio D-Bus** (zbus) che espone stato dispositivi + eventi hotplug alla
     GUI e ad altre app, stile KDE Connect — sostituisce a lungo termine lo
     scraping da subprocess.

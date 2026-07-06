@@ -30,7 +30,7 @@ and the class/subclass/protocol + string of every interface), then classified:
 
 Probes must be short (1–2 s) so an unrecognised device never blocks
 enumeration. The fingerprint/classify logic is I/O-free and unit-tested; only
-enumeration touches the bus (via `rusb`/libusb).
+enumeration touches the bus (via `nusb`, pure Rust).
 
 ## 2. Capability matrix
 
@@ -56,8 +56,8 @@ An **AOA accessory switch** (after `ACCESSORY_START`, request 53) and an **iOS
 trust-dialog** both make the same physical device disconnect and reappear with a
 **different vid/pid and USB address**. CONFIRMED. Correlating by vid/pid or
 address would treat it as a new device, so the `DeviceManager` keys on the
-**stable physical port path** — bus number + hub-port chain (`rusb`
-`bus_number()` + `port_numbers()`, e.g. `1-1.3`). A mode switch on the same port
+**stable physical port path** — bus number + hub-port chain (`nusb`
+`busnum()` + `port_chain()`, e.g. `1-1.3`). A mode switch on the same port
 is reported as a `Switched` transition, prompting a re-probe with the new
 handler. After an iOS trust grant, re-probe lockdown.
 
@@ -88,4 +88,4 @@ handler. After an iOS trust grant, re-probe lockdown.
 gnokii/gammu (Nokia), source.android.com AOA 1.0/2.0 and AOSP `adb.h` /
 `fastboot` (Android), USB-IF class codes (PTP), libimobiledevice/usbmuxd
 `usb.h` / `39-usbmuxd.rules.in` (Apple), Linux kernel sysfs-bus-usb ABI and
-`docs.rs/rusb` (enumeration / physical port path).
+`docs.rs/nusb` (enumeration / physical port path).

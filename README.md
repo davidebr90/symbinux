@@ -43,7 +43,7 @@ classes.
 symbinux/
 ├── crates/                     # Rust workspace (the core)
 │   ├── symbinux-protocol/      # FBUS/MBUS framing — pure, no I/O, fully tested
-│   ├── symbinux-transport/     # serial (termios) + raw USB (libusb), enumeration
+│   ├── symbinux-transport/     # serial (termios) + raw USB (nusb, pure Rust), enumeration
 │   ├── symbinux-devices/       # USB fingerprinting + per-platform dispatch
 │   └── symbinux-cli/           # `symbinux-fbus` gnokii-style command-line tool
 ├── src/symbinux/               # GTK4 + libadwaita GUI (Python), calls the CLI
@@ -83,7 +83,8 @@ directly, forcing a Bluetooth pair) is described in
 
 ## Requirements
 
-- Rust ≥ 1.74, `libusb-1.0`, `pkg-config`.
+- Rust ≥ 1.74. On Linux, `libudev` + `pkg-config` (for serial-port enumeration).
+  No libusb — raw USB access is pure-Rust via [`nusb`](https://docs.rs/nusb).
 - For the GUI: Python ≥ 3.11, GTK4 and libadwaita (`gir1.2-gtk-4.0`,
   `gir1.2-adw-1` on Debian/Ubuntu).
 - A real Linux machine, or WSL2 with USB passthrough for hardware tests. The

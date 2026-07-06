@@ -79,6 +79,16 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   risincronizza e il buffer resta limitato (test fuzz pseudo-casuale).
 
 ### Modificato
+- **Layer USB migrato da `rusb`/libusb a [`nusb`](https://docs.rs/nusb) in Rust
+  puro**: il claim diretto del dispositivo USB, il distacco del driver kernel (ora
+  `detach_and_claim_interface`), la scoperta degli endpoint e l'I/O bulk non
+  dipendono più dalla libreria C libusb, quindi i binari Linux/Windows/macOS sono
+  self-contained (niente `libusb-1.0.dll`/`.dylib` da distribuire; la CI non
+  installa più `libusb-1.0-0-dev`). L'enumerazione legge ora le stringhe dei
+  descrittori dalla cache del SO senza aprire ogni dispositivo. La logica di
+  selezione endpoint e mappatura errori è coperta da unit test; la parità
+  dell'I/O bulk su dispositivo va validata su hardware Nokia reale. Vedi
+  `docs/NUSB_MIGRATION_STUDY.md` per l'analisi alla base della scelta.
 - L'inglese è ora lo standard per la documentazione; la descrizione del
   repository su GitHub è in inglese e il changelog è in inglese come primario con
   variante italiana (`CHANGELOG.it.md`), come per il README. Le varianti italiane

@@ -75,6 +75,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   wrapping a name/number longer than the protocol's single-byte length field.
 
 ### Changed
+- **USB layer migrated from `rusb`/libusb to pure-Rust
+  [`nusb`](https://docs.rs/nusb)**: the raw USB device claim, kernel-driver
+  detach (now `detach_and_claim_interface`), endpoint discovery and bulk I/O no
+  longer depend on the libusb C library, so the Linux/Windows/macOS binaries are
+  self-contained (no `libusb-1.0.dll`/`.dylib` to bundle; CI no longer installs
+  `libusb-1.0-0-dev`). Enumeration now reads the OS-cached descriptor strings
+  without opening each device. The endpoint-selection and error-mapping logic is
+  unit-tested; on-device bulk I/O parity is pending validation on real Nokia
+  hardware. See `docs/NUSB_MIGRATION_STUDY.md` for the analysis behind the change.
 - English is now the documentation standard; the GitHub repository description is
   in English, and the changelog is English-primary with an Italian variant
   (`CHANGELOG.it.md`), matching the README pattern. Italian variants are provided

@@ -10,9 +10,9 @@ developer-facing reference material (English only).
 |---|---|---|---|---|
 | `symbinux-protocol` (framing) | ✅ | ✅ | ✅ | Pure byte logic, no OS calls. |
 | `symbinux-transport` serial | ✅ | ✅ | ✅ | `serialport` crate is cross-platform; `--port` takes any string (`COM3` works). Enumeration uses `libudev` on Linux only. |
-| `symbinux-transport` raw USB | ✅ | ⚠️ | ✅ | `rusb`/libusb is cross-platform; one `#[cfg(target_os="linux")]` guard (`set_auto_detach_kernel_driver`) is correctly scoped. Windows raw-USB needs a WinUSB driver bound (Zadig) — **only** for the raw-USB/BB5 path, not the serial cable path. |
-| `symbinux-devices` (detection) | ✅ | ✅ | ✅ | Pure descriptor/interface logic via `rusb`. The `PortKey::path()` `"1-1.3"` string is a display label, not used to open devices. |
-| `symbinux-fbus` CLI | ✅ | ✅ | ✅ | All subcommands portable given a libusb backend and a valid `COM`/tty path. |
+| `symbinux-transport` raw USB | ✅ | ⚠️ | ✅ | `nusb` (pure Rust) is cross-platform; kernel-driver detach is folded into `detach_and_claim_interface` (Linux). Windows raw-USB needs a WinUSB driver bound (Zadig) — a WinUSB limitation shared with libusb, **only** for the raw-USB/BB5 path, not the serial cable path. |
+| `symbinux-devices` (detection) | ✅ | ✅ | ✅ | Pure descriptor/interface logic via `nusb` (cached strings, no device open). The `PortKey::path()` `"1-1.3"` string is a display label, not used to open devices. |
+| `symbinux-fbus` CLI | ✅ | ✅ | ✅ | All subcommands portable given a valid `COM`/tty path; USB access is pure-Rust `nusb`, no native backend to install. |
 | Python GTK4 + **libadwaita** GUI | ✅ | ❌ | ❌ | libadwaita is GNOME/Linux-first and portal-dependent. `pyproject.toml` already gates `PyGObject` to `sys_platform == 'linux'`. |
 | GUI Bluetooth scan | ✅ | ❌ | ❌ | Shells `bluetoothctl` (BlueZ, Linux-only). |
 | GUI Wi-Fi scan | ✅ | ❌ | ❌ | Shells `nmcli` (NetworkManager, Linux-only). |
@@ -26,11 +26,10 @@ developer-facing reference material (English only).
 **Ships on Windows/macOS with modest effort — the CLI + core.** `symbinux-fbus`
 builds for `x86_64-pc-windows-msvc` / `aarch64-apple-darwin` with close to zero
 code changes. Only follow-ups:
-- Windows: bundle `libusb-1.0.dll`, **or migrate the USB layer to
-  [`nusb`](https://github.com/kevinmehall/nusb)** (pure Rust, no libusb C
-  dependency) to drop the native dependency entirely. Document the Zadig/WinUSB
-  step only for raw-USB/BB5 users; the DKU-2/CA-42 serial path just needs a
-  `COMn` port Windows already exposes.
+- Windows: the USB layer uses [`nusb`](https://github.com/kevinmehall/nusb)
+  (pure Rust) — no `libusb-1.0.dll` to bundle. Document the Zadig/WinUSB step
+  only for raw-USB/BB5 users; the DKU-2/CA-42 serial path just needs a `COMn`
+  port Windows already exposes.
 - macOS: ship a signed/notarised universal binary or a Homebrew formula.
 - Cosmetic: the `--port` help text example (`/dev/ttyUSB0`) could be
   OS-conditional.
@@ -49,9 +48,9 @@ effort from shipping the CLI cross-platform.
 
 - **Linux** — Flatpak for the GUI (already fits); a plain binary / `.deb` /
   `.rpm` / AUR for the CLI alone.
-- **Windows** — zipped `symbinux-fbus.exe` (+ optional `libusb-1.0.dll`, or
-  `nusb` build); optional winget/Scoop manifest. GUI is CLI-only until the
-  toolkit question is resolved.
+- **Windows** — zipped `symbinux-fbus.exe`, self-contained (USB via pure-Rust
+  `nusb`, no DLL to bundle); optional winget/Scoop manifest. GUI is CLI-only
+  until the toolkit question is resolved.
 - **macOS** — Homebrew formula and a notarised universal binary; GUI CLI-only
   for now.
 
@@ -75,6 +74,8 @@ cargo build --release --target aarch64-apple-darwin -p symbinux-cli
 - **Windows serial:** a DKU-2/CA-42 cable enumerates as a COM port with inbox or
   vendor serial drivers — no extra driver needed. Only the raw-USB/BB5 path needs
   a WinUSB driver bound via [Zadig](https://zadig.akeo.ie/).
-- **Optional:** migrating the USB layer from `rusb` to
-  [`nusb`](https://github.com/kevinmehall/nusb) drops the libusb C dependency on
-  every platform (single self-contained binary, no `libusb-1.0.dll` to bundle).
+- **Self-contained USB:** the USB layer uses
+  [`nusb`](https://github.com/kevinmehall/nusb) (pure Rust), so there is no
+  libusb C dependency on any platform — a single self-contained binary, no
+  `libusb-1.0.dll` to bundle. On Linux the only native build input is `libudev`
+  (for serial-port enumeration).

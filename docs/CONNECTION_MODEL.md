@@ -25,7 +25,7 @@ value: a phone the OS has no driver for, or that was never paired.
 ### 2. App-owned (forces the link)
 Symbinux takes the device from the OS and speaks the protocol itself:
 - **Raw USB** (`UsbTransport::open_fbus_auto`): claims the phone's USB device
-  directly through libusb, **detaching any kernel driver first**, auto-discovers
+  directly via `nusb` (pure Rust), **detaching any kernel driver first**, auto-discovers
   the FBUS bulk endpoints, and drives the protocol — no `/dev/ttyUSB` required.
   This is how a DKU-2 native-USB or BB5 phone is reached on a machine with no
   serial driver. Exposed as `symbinux-fbus identify --usb`.
@@ -36,7 +36,7 @@ Symbinux takes the device from the OS and speaks the protocol itself:
   channel for direct FBUS/OBEX is the next step. Needs a real adapter to
   validate; pairing may require confirming a code on the phone.
 
-> On Linux the app still rides the kernel USB/Bluetooth stacks (via libusb /
+> On Linux the app still rides the kernel USB/Bluetooth stacks (via usbfs /
 > BlueZ) — you cannot bypass the kernel entirely. What the app *does* bypass is
 > the OS's **default drivers, pairing UI and daemons**: it claims the device and
 > owns the protocol, which is the meaningful "force the connection" the tool
@@ -57,7 +57,7 @@ Symbinux takes the device from the OS and speaks the protocol itself:
 | Path | Status |
 |---|---|
 | Serial (OS ttyUSB) | Works; needs an OS serial driver. |
-| **Raw USB (app-owned, `--usb`)** | Implemented — claims the device via libusb, auto-discovers endpoints; needs real hardware to validate on-device. |
+| **Raw USB (app-owned, `--usb`)** | Implemented — claims the device via `nusb` (pure Rust), auto-discovers endpoints; needs real hardware to validate on-device. |
 | Bluetooth scan / PBAP contacts | Implemented via BlueZ/obexd, with app-driven *pairing* (force pair + connect). Needs hardware to validate. |
 | Android/iOS | Dispatch + capabilities only; real transfer via `adb_client`/`idevice` is future work. |
 

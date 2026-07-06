@@ -1,77 +1,47 @@
-//! Build [`DetectedDevice`] fingerprints from the live USB bus via libusb (rusb).
+//! Build [`DetectedDevice`] fingerprints from the live USB bus via nusb.
 //!
-//! Reads the device descriptor (vid/pid/class), walks the active configuration's
-//! interface descriptors for the class/subclass/protocol triples and interface
-//! strings, and records the stable physical port path (bus + port chain). String
-//! descriptors are best-effort: they need the device opened, which may fail
-//! without permission — in that case ids and topology are still reported.
+//! Reads each device's cached descriptor data (vid/pid/class), the active
+//! configuration's per-interface class/subclass/protocol triples and interface
+//! strings, and the stable physical port path (bus + port chain). None of this
+//! opens the device: nusb exposes the OS-cached strings and interface summaries
+//! from enumeration, so ids, topology and strings are reported without needing
+//! permission to claim the device.
 
-use std::time::Duration;
+use nusb::MaybeFuture;
 
 use crate::device::{DetectedDevice, PortKey};
 use crate::fingerprint::{InterfaceFingerprint, UsbFingerprint};
 
-const STRING_TIMEOUT: Duration = Duration::from_millis(200);
-
 /// Enumerate every USB device and fingerprint it.
-pub fn detect() -> Result<Vec<DetectedDevice>, rusb::Error> {
+pub fn detect() -> Result<Vec<DetectedDevice>, nusb::Error> {
     let mut out = Vec::new();
-    for device in rusb::devices()?.iter() {
-        let desc = match device.device_descriptor() {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
+    for info in nusb::list_devices().wait()? {
+        let interfaces = info
+            .interfaces()
+            .map(|intf| {
+                let mut fp =
+                    InterfaceFingerprint::new(intf.class(), intf.subclass(), intf.protocol());
+                fp.interface_string = intf.interface_string().map(String::from);
+                fp
+            })
+            .collect();
 
-        let mut interfaces = Vec::new();
-        // Open once (if allowed) to read interface/product strings.
-        let handle = device.open().ok();
-        let lang = handle
-            .as_ref()
-            .and_then(|h| h.read_languages(STRING_TIMEOUT).ok())
-            .and_then(|langs| langs.first().copied());
-
-        if let Ok(config) = device.active_config_descriptor() {
-            for iface in config.interfaces() {
-                for id in iface.descriptors() {
-                    let string = match (&handle, lang, id.description_string_index()) {
-                        (Some(h), Some(l), Some(idx)) => {
-                            h.read_string_descriptor(l, idx, STRING_TIMEOUT).ok()
-                        }
-                        _ => None,
-                    };
-                    let mut fp = InterfaceFingerprint::new(
-                        id.class_code(),
-                        id.sub_class_code(),
-                        id.protocol_code(),
-                    );
-                    fp.interface_string = string;
-                    interfaces.push(fp);
-                }
-            }
-        }
-
-        let (manufacturer, product, serial) = match (&handle, lang) {
-            (Some(h), Some(l)) => (
-                h.read_manufacturer_string(l, &desc, STRING_TIMEOUT).ok(),
-                h.read_product_string(l, &desc, STRING_TIMEOUT).ok(),
-                h.read_serial_number_string(l, &desc, STRING_TIMEOUT).ok(),
-            ),
-            _ => (None, None, None),
-        };
-
-        let ports = device.port_numbers().unwrap_or_default();
+        #[cfg(target_os = "linux")]
+        let bus = info.busnum();
+        #[cfg(not(target_os = "linux"))]
+        let bus = 0u8;
 
         out.push(DetectedDevice {
-            port: PortKey::new(device.bus_number(), ports),
+            port: PortKey::new(bus, info.port_chain().to_vec()),
             fingerprint: UsbFingerprint {
-                vendor_id: desc.vendor_id(),
-                product_id: desc.product_id(),
-                device_class: desc.class_code(),
+                vendor_id: info.vendor_id(),
+                product_id: info.product_id(),
+                device_class: info.class(),
                 interfaces,
             },
-            manufacturer,
-            product,
-            serial,
+            manufacturer: info.manufacturer_string().map(String::from),
+            product: info.product_string().map(String::from),
+            serial: info.serial_number().map(String::from),
         });
     }
     Ok(out)

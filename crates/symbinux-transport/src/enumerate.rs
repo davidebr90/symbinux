@@ -76,45 +76,30 @@ fn classify(vid: u16) -> Role {
 
 /// Enumerate all USB devices visible to the host.
 ///
-/// String descriptors (manufacturer/product/serial) require opening the device
-/// and may be unavailable without permission; in that case they come back as
-/// `None` while ids and topology are still reported.
-pub fn list_usb_devices() -> Result<Vec<UsbDeviceInfo>, rusb::Error> {
-    let mut out = Vec::new();
-    for device in rusb::devices()?.iter() {
-        let desc = match device.device_descriptor() {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-        let vid = desc.vendor_id();
-        let pid = desc.product_id();
+/// Manufacturer/product/serial strings are read from the OS's cached descriptor
+/// data without opening the device (so no permission is needed). On Windows the
+/// manufacturer string is not cached and comes back as `None`; ids and topology
+/// are always reported.
+pub fn list_usb_devices() -> Result<Vec<UsbDeviceInfo>, nusb::Error> {
+    use nusb::MaybeFuture;
 
-        let (manufacturer, product, serial) = match device.open() {
-            Ok(handle) => {
-                let timeout = std::time::Duration::from_millis(200);
-                let langs = handle.read_languages(timeout).unwrap_or_default();
-                let lang = langs.first().copied();
-                let read = |f: &dyn Fn() -> rusb::Result<String>| match lang {
-                    Some(_) => f().ok(),
-                    None => None,
-                };
-                (
-                    read(&|| handle.read_manufacturer_string(lang.unwrap(), &desc, timeout)),
-                    read(&|| handle.read_product_string(lang.unwrap(), &desc, timeout)),
-                    read(&|| handle.read_serial_number_string(lang.unwrap(), &desc, timeout)),
-                )
-            }
-            Err(_) => (None, None, None),
-        };
+    let mut out = Vec::new();
+    for info in nusb::list_devices().wait()? {
+        let vid = info.vendor_id();
+
+        #[cfg(target_os = "linux")]
+        let bus = info.busnum();
+        #[cfg(not(target_os = "linux"))]
+        let bus = 0u8;
 
         out.push(UsbDeviceInfo {
-            bus: device.bus_number(),
-            address: device.address(),
+            bus,
+            address: info.device_address(),
             vendor_id: vid,
-            product_id: pid,
-            manufacturer,
-            product,
-            serial,
+            product_id: info.product_id(),
+            manufacturer: info.manufacturer_string().map(String::from),
+            product: info.product_string().map(String::from),
+            serial: info.serial_number().map(String::from),
             role: classify(vid),
         });
     }

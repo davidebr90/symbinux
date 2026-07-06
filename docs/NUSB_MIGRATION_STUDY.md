@@ -1,10 +1,12 @@
 # nusb migration study (rusb/libusb → nusb)
 
-> Status: **research / decision document — no code changed yet.**
-> Purpose: decide, with eyes open, whether and how to replace the `rusb`
-> (libusb C binding) USB layer with the pure-Rust [`nusb`](https://docs.rs/nusb)
-> crate, covering the API mapping, the async/sync bridge, per-OS behaviour and
-> the edge cases that could bite on real hardware.
+> Status: **executed.** The migration described here has been implemented and is
+> green under CI (build + `cargo test --workspace` + `cargo clippy --workspace -D
+> warnings` + `cargo fmt --check`); the raw-USB layer now uses `nusb`. On-device
+> bulk I/O parity is still pending validation on real Nokia hardware (per §7,
+> step 7). This document is retained as the rationale and the map of what was
+> done, covering the API mapping, the async/sync bridge, per-OS behaviour and the
+> edge cases that could bite on real hardware.
 
 ## 1. Why consider this at all
 
@@ -237,5 +239,10 @@ session/day budget.
 
 ---
 
-*This document is analysis only. No production code, dependency, or git history
-has been modified. Execution is deferred to a dedicated session per §7.*
+*Executed. The spike (§0) confirmed against the nusb 0.2.4 source that the
+blocking `Endpoint::transfer_blocking(buf, timeout)` and the cached
+`DeviceInfo` strings remove both open questions that had blocked the estimate
+(no executor dependency was needed). The USB layer, error type, both
+`enumerate.rs` files and the CI/release workflows were migrated in one unit and
+committed green. The only remaining step is on-device I/O validation on real
+Nokia hardware (§7, step 7).*

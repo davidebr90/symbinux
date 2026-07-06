@@ -14,9 +14,10 @@ cargo build --release
 # the binary lands at target/release/symbinux-fbus
 ```
 
-Runtime dependencies (Debian/Ubuntu): `libusb-1.0-0`, and for a cable that
-exposes a serial port the in-kernel `ftdi_sio` / `cp210x` / `pl2303` drivers
-(present by default). Optional, for the wireless channels: `bluez` (Bluetooth
+Runtime dependencies (Debian/Ubuntu): none for raw USB — access is pure-Rust via
+`nusb`, so no `libusb` is required. For a cable that exposes a serial port, the
+in-kernel `ftdi_sio` / `cp210x` / `pl2303` drivers (present by default) plus
+`libudev` for port enumeration. Optional, for the wireless channels: `bluez` (Bluetooth
 scan) and `network-manager` (Wi-Fi scan); iOS support additionally needs the
 `usbmuxd` daemon (see `udev/README.md`).
 

@@ -53,7 +53,7 @@ id grezzi anche per cavi non riconosciuti. Non esegue I/O col telefono.
 | `devices [--all] [--json]` | Enumerazione avanzata. Senza `--all` mostra solo telefoni e cavi bridge noti. `--json` produce un formato macchina stabile. | Confermato |
 | `detect [--progress] [--json]` | Rileva automaticamente piattaforma e capability del telefono collegato. `--json` per lo scripting. | Confermato |
 | `ports [--json]` | Elenca le porte seriali esposte dal SO (con id USB). | Confermato |
-| `identify [--port <p>] [--usb] [--json]` | Query versione HW/SW. `--usb` fa claim diretto del Nokia via libusb (nessun driver seriale); `--json` stampa modello/firmware/data decodificati. | Confermato |
+| `identify [--port <p>] [--usb] [--json]` | Query versione HW/SW. `--usb` fa claim diretto del Nokia via `nusb` (Rust puro, nessun driver seriale); `--json` stampa modello/firmware/data decodificati. | Confermato |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Legge una voce di rubrica. | Confermato |
 | `netmon --port <p> [--screen <n>]` | Schermata/controllo netmonitor. | Confermato |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Invia un frame FBUS/2 arbitrario (reverse engineering). | Sperimentale |

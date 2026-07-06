@@ -13,7 +13,7 @@ symbinux-protocol.workspace = true
 symbinux-transport.workspace = true
 thiserror.workspace = true
 log.workspace = true
-rusb = "0.9"
+nusb = "0.2"
 
 [lib]
 name = "symbinux_devices"

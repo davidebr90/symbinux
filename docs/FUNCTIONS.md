@@ -51,7 +51,7 @@ unrecognised cables. It performs no phone I/O.
 | `devices [--all] [--json]` | Advanced device enumeration. Without `--all`, shows only phones and known cable bridges. `--json` emits a stable machine format. | Confirmed |
 | `detect [--progress] [--json]` | Auto-detect a connected phone's platform and capabilities. `--json` for scripting. | Confirmed |
 | `ports [--json]` | List the serial ports the OS exposes (with USB ids). | Confirmed |
-| `identify [--port <p>] [--usb] [--json]` | HW/SW version query. `--usb` claims the Nokia device directly via libusb (no serial driver needed); `--json` prints the decoded model/firmware/date. | Confirmed |
+| `identify [--port <p>] [--usb] [--json]` | HW/SW version query. `--usb` claims the Nokia device directly via `nusb` (pure Rust, no serial driver needed); `--json` prints the decoded model/firmware/date. | Confirmed |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Read a phonebook entry. | Confirmed |
 | `netmon --port <p> [--screen <n>]` | Netmonitor screen / control. | Confirmed |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Send an arbitrary FBUS/2 frame (reverse-engineering). | Experimental |
