@@ -47,9 +47,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **GUI identity card**: the Identify button now shows the decoded model /
   firmware / date as a tidy card (via `identify --json`) instead of raw text.
 - **CLI `completions`** subcommand (bash/zsh/fish/…) and `identify --json`.
-- **Flatpak packaging**: a `.desktop` launcher, AppStream `metainfo.xml`, an app
-  icon and installed shell completions; the manifest also opens the D-Bus names
-  needed for Bluetooth (BlueZ/obexd) and Wi-Fi (NetworkManager).
+- **Flatpak packaging**: a `.desktop` launcher, AppStream `metainfo.xml`, a real
+  square **app icon** (`assets/logo/symbinux_icon.png`), and installed shell
+  completions + man page; the manifest opens the D-Bus names needed for Bluetooth
+  (BlueZ/obexd) and Wi-Fi (NetworkManager). CI now validates the desktop and
+  AppStream metadata.
+- **Offline decode commands**: `decode-frame <hex>` and `decode-sms <hex>` decode
+  captured FBUS/2 frames and SMS-DELIVER PDUs without a device — handy for
+  reverse-engineering. Plus a `man` subcommand (roff man page).
+- **Four more UI languages**: Polish, Russian, Simplified Chinese and Japanese
+  (**11 languages** total).
+- **Actionable GUI errors**: common failures (permission denied, missing serial
+  port, timeout) now carry a hint pointing at the fix.
 
 ### Fixed
 - **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty

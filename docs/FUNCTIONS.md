@@ -56,6 +56,9 @@ unrecognised cables. It performs no phone I/O.
 | `netmon --port <p> [--screen <n>]` | Netmonitor screen / control. | Confirmed |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Send an arbitrary FBUS/2 frame (reverse-engineering). | Experimental |
 | `completions <bash\|zsh\|fish\|…>` | Print a shell completion script to stdout. | Confirmed |
+| `man` | Print the roff man page to stdout. | Confirmed |
+| `decode-frame <hex>` | Decode a captured FBUS/2 frame offline (no device). | Confirmed |
+| `decode-sms <hex>` | Decode a captured SMS-DELIVER PDU offline (no device). | Confirmed |
 
 In the GUI, the **Identify** button shows the decoded identity as a card
 (model / firmware / date) rather than raw text, resolving the phone's serial port

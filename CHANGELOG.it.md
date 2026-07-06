@@ -52,9 +52,17 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   firmware / data decodificati come scheda (via `identify --json`) invece che
   testo grezzo.
 - **Subcomando CLI `completions`** (bash/zsh/fish/…) e `identify --json`.
-- **Packaging Flatpak**: launcher `.desktop`, `metainfo.xml` AppStream, icona e
-  completamenti shell installati; il manifest apre anche i nomi D-Bus necessari
-  per Bluetooth (BlueZ/obexd) e Wi-Fi (NetworkManager).
+- **Packaging Flatpak**: launcher `.desktop`, `metainfo.xml` AppStream, una vera
+  **icona quadrata** (`assets/logo/symbinux_icon.png`), completamenti shell e man
+  page installati; il manifest apre i nomi D-Bus per Bluetooth (BlueZ/obexd) e
+  Wi-Fi (NetworkManager). Il CI ora valida i metadati desktop e AppStream.
+- **Comandi di decodifica offline**: `decode-frame <hex>` e `decode-sms <hex>`
+  decodificano frame FBUS/2 e PDU SMS-DELIVER catturati senza un dispositivo —
+  utile per il reverse engineering. Più un subcomando `man` (man page roff).
+- **Altre quattro lingue UI**: polacco, russo, cinese semplificato e giapponese
+  (**11 lingue** totali).
+- **Errori GUI utili**: i fallimenti comuni (permesso negato, porta seriale
+  mancante, timeout) ora riportano un suggerimento su come risolvere.
 
 ### Corretto
 - **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le

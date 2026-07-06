@@ -58,6 +58,9 @@ id grezzi anche per cavi non riconosciuti. Non esegue I/O col telefono.
 | `netmon --port <p> [--screen <n>]` | Schermata/controllo netmonitor. | Confermato |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Invia un frame FBUS/2 arbitrario (reverse engineering). | Sperimentale |
 | `completions <bash\|zsh\|fish\|…>` | Stampa uno script di completamento shell su stdout. | Confermato |
+| `man` | Stampa la man page roff su stdout. | Confermato |
+| `decode-frame <hex>` | Decodifica offline un frame FBUS/2 catturato (senza dispositivo). | Confermato |
+| `decode-sms <hex>` | Decodifica offline un PDU SMS-DELIVER catturato (senza dispositivo). | Confermato |
 
 Nella GUI, il pulsante **Identifica** mostra l'identità decodificata come scheda
 (modello / firmware / data) invece che testo grezzo, risolvendo automaticamente
