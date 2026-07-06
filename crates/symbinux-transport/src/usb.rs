@@ -134,27 +134,6 @@ fn pick_bulk_pair(eps: &[(u8, Direction, TransferType)]) -> Option<(u8, u8)> {
     Some((ep_in?, ep_out?))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn picks_bulk_in_out_pair() {
-        let eps = [
-            (0x81, Direction::In, TransferType::Interrupt), // ignored
-            (0x82, Direction::In, TransferType::Bulk),
-            (0x02, Direction::Out, TransferType::Bulk),
-        ];
-        assert_eq!(pick_bulk_pair(&eps), Some((0x82, 0x02)));
-    }
-
-    #[test]
-    fn none_without_both_directions() {
-        let eps = [(0x82, Direction::In, TransferType::Bulk)];
-        assert_eq!(pick_bulk_pair(&eps), None);
-    }
-}
-
 impl Transport for UsbTransport {
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), TransportError> {
         let mut written = 0;
@@ -193,5 +172,26 @@ impl Transport for UsbTransport {
             Err(TransferError::Cancelled) => Ok(0),
             Err(e) => Err(TransportError::Transfer(e)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn picks_bulk_in_out_pair() {
+        let eps = [
+            (0x81, Direction::In, TransferType::Interrupt), // ignored
+            (0x82, Direction::In, TransferType::Bulk),
+            (0x02, Direction::Out, TransferType::Bulk),
+        ];
+        assert_eq!(pick_bulk_pair(&eps), Some((0x82, 0x02)));
+    }
+
+    #[test]
+    fn none_without_both_directions() {
+        let eps = [(0x82, Direction::In, TransferType::Bulk)];
+        assert_eq!(pick_bulk_pair(&eps), None);
     }
 }
