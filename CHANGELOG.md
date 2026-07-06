@@ -84,6 +84,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   without opening each device. The endpoint-selection and error-mapping logic is
   unit-tested; on-device bulk I/O parity is pending validation on real Nokia
   hardware. See `docs/NUSB_MIGRATION_STUDY.md` for the analysis behind the change.
+- **udev rule marks Nokia devices `ID_MM_DEVICE_IGNORE`** so ModemManager no
+  longer grabs the phone before the app can claim it over the `--usb` (app-owned
+  USB) path on desktops running ModemManager.
 - English is now the documentation standard; the GitHub repository description is
   in English, and the changelog is English-primary with an Italian variant
   (`CHANGELOG.it.md`), matching the README pattern. Italian variants are provided

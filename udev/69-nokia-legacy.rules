@@ -17,8 +17,10 @@
 # vendor match below is intentional so new models work without editing rules.
 # See data/devices.json for the per-model VID/PID table.
 
-# Raw USB device node (used by the libusb transport, e.g. BB5 phones without TTY)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0421", MODE="0660", GROUP="dialout", TAG+="uaccess"
+# Raw USB device node (used by the nusb transport, e.g. BB5 phones without TTY).
+# ID_MM_DEVICE_IGNORE tells ModemManager to leave these devices alone so the app
+# can claim the interface itself instead of losing it to the modem daemon.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0421", MODE="0660", GROUP="dialout", TAG+="uaccess", ENV{ID_MM_DEVICE_IGNORE}="1"
 
 # Virtual serial port exposed by DKU-2/CA-42 cables (ftdi_sio / cp210x / pl2303),
 # reachable at a stable path /dev/nokia_fbus
