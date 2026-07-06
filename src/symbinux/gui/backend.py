@@ -97,6 +97,26 @@ def _find_binary() -> str:
     )
 
 
+def _augment_error(msg: str) -> str:
+    """Append an actionable hint for common, recognisable failures."""
+    low = msg.lower()
+    if "permission denied" in low or "access is denied" in low:
+        return (
+            msg
+            + "\n\nHint: install the udev rule and add your user to the "
+            "'dialout' group, then re-login — see docs/SETUP.md."
+        )
+    if "no such file" in low and "ttyusb" in low:
+        return (
+            msg
+            + "\n\nHint: no serial port appeared — check `dmesg` after plugging "
+            "the cable in; the phone may be in mass-storage/PC-Suite mode."
+        )
+    if "timed out" in low or "timeout" in low:
+        return msg + "\n\nHint: the phone didn't reply — check the cable and that the phone is on."
+    return msg
+
+
 def _run(args: list[str], timeout: float = 10.0) -> str:
     binary = _find_binary()
     try:
@@ -106,10 +126,12 @@ def _run(args: list[str], timeout: float = 10.0) -> str:
             text=True,
             timeout=timeout,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except subprocess.TimeoutExpired as exc:
+        raise BackendUnavailable(_augment_error(str(exc))) from exc
+    except OSError as exc:
         raise BackendUnavailable(str(exc)) from exc
     if result.returncode != 0:
-        raise BackendUnavailable(result.stderr.strip() or "command failed")
+        raise BackendUnavailable(_augment_error(result.stderr.strip() or "command failed"))
     return result.stdout
 
 

@@ -30,10 +30,11 @@ modules:
     build-commands:
       - cargo build --release --offline --bin symbinux-fbus || cargo build --release --bin symbinux-fbus
       - install -Dm755 target/release/symbinux-fbus /app/bin/symbinux-fbus
-      - install -d /app/share/bash-completion/completions /app/share/zsh/site-functions /app/share/fish/vendor_completions.d
+      - install -d /app/share/bash-completion/completions /app/share/zsh/site-functions /app/share/fish/vendor_completions.d /app/share/man/man1
       - target/release/symbinux-fbus completions bash > /app/share/bash-completion/completions/symbinux-fbus
       - target/release/symbinux-fbus completions zsh > /app/share/zsh/site-functions/_symbinux-fbus
       - target/release/symbinux-fbus completions fish > /app/share/fish/vendor_completions.d/symbinux-fbus.fish
+      - target/release/symbinux-fbus man > /app/share/man/man1/symbinux-fbus.1
     sources:
       - type: dir
         path: ../..
@@ -46,7 +47,8 @@ modules:
       - pip3 install --no-build-isolation --prefix=/app .
       - install -Dm644 packaging/flatpak/it.davidebr90.Symbinux.desktop /app/share/applications/it.davidebr90.Symbinux.desktop
       - install -Dm644 packaging/flatpak/it.davidebr90.Symbinux.metainfo.xml /app/share/metainfo/it.davidebr90.Symbinux.metainfo.xml
-      - install -Dm644 assets/logo/symbinux_logo_transparent_light.png /app/share/icons/hicolor/256x256/apps/it.davidebr90.Symbinux.png
+      - install -Dm644 assets/logo/symbinux_icon.png /app/share/icons/hicolor/256x256/apps/it.davidebr90.Symbinux.png
+      - install -Dm644 assets/logo/symbinux_icon_128.png /app/share/icons/hicolor/128x128/apps/it.davidebr90.Symbinux.png
     sources:
       - type: dir
         path: ../..
