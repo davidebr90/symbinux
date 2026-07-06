@@ -38,10 +38,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   building blocks for contacts/SMS features (unit-tested).
 - **CI/release workflows** (`.github/workflows/`): fmt/clippy/test on push, and
   cross-compiled `symbinux-fbus` binaries for Linux/Windows/macOS on tag.
+- **Multi-frame reply reassembly**: `exchange_fbus2` reads a fragmented reply to
+  the last frame, and `reassemble_fbus2` concatenates the fragments into a single
+  payload (unit-tested), so long phone responses aren't truncated.
 
 ### Fixed
 - **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty
   reads so waiting for a reply no longer spins a core.
+- **`Fbus2Reader` line-noise wedge**: a false `0x1E` marker declaring an
+  implausible length no longer stalls the reader forever — it resyncs and the
+  buffer stays bounded (covered by a pseudo-random fuzz test).
 - **`write_phonebook` silent truncation**: it now returns an error instead of
   wrapping a name/number longer than the protocol's single-byte length field.
 

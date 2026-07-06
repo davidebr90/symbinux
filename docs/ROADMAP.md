@@ -46,9 +46,9 @@ The backlog below is prioritised from a multi-project review; see
    to every command. Unblocks contacts and SMS features.
 3. **SMS list/read/send end-to-end** and **phonebook read/write** wired through
    CLI + GUI, with an explicit confirmation gate for `Experimental` writes.
-4. **Multi-frame reassembly** in `exchange_fbus2` (handle `FramesToGo > 1`
-   fragmented replies) and a **retransmission window** (configurable ACK timeout
-   200–500 ms + retry per the gnokii sequence scheme).
+4. **Retransmission window** — configurable ACK timeout (200–500 ms) + retry per
+   the gnokii sequence scheme. (Multi-frame reply reassembly is done:
+   `exchange_fbus2` reads to the last fragment and `reassemble_fbus2` joins them.)
 5. **MBUS v1 on hardware** — call `drain_echo` in an MBUS exchange loop, validate
    against a real phone, replace the synthetic fixture with a real capture.
 6. **Robustness** — differentiate GUI errors (missing binary vs permission vs

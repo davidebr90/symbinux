@@ -52,9 +52,10 @@ portabilità.
    comando. Sblocca contatti e SMS.
 3. **SMS lista/lettura/invio end-to-end** e **rubrica lettura/scrittura** cablati
    in CLI + GUI, con conferma esplicita per le scritture `Experimental`.
-4. **Riassemblaggio multi-frame** in `exchange_fbus2` (gestire risposte
-   frammentate `FramesToGo > 1`) e **finestra di ritrasmissione** (timeout ACK
-   configurabile 200–500 ms + retry secondo lo schema gnokii).
+4. **Finestra di ritrasmissione** — timeout ACK configurabile (200–500 ms) +
+   retry secondo lo schema gnokii. (Il riassemblaggio delle risposte multi-frame
+   è fatto: `exchange_fbus2` legge fino all'ultimo frammento e `reassemble_fbus2`
+   li unisce.)
 5. **MBUS v1 su hardware** — chiamare `drain_echo` in un loop di scambio MBUS,
    validare contro un telefono reale, sostituire la fixture sintetica.
 6. **Robustezza** — differenziare gli errori GUI (binario mancante vs permessi vs

@@ -42,12 +42,18 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   per le funzioni contatti/SMS (testati).
 - **Workflow CI/release** (`.github/workflows/`): fmt/clippy/test al push, e
   binari `symbinux-fbus` cross-compilati per Linux/Windows/macOS su tag.
+- **Riassemblaggio risposte multi-frame**: `exchange_fbus2` legge una risposta
+  frammentata fino all'ultimo frame e `reassemble_fbus2` unisce i frammenti in
+  un unico payload (testato), così le risposte lunghe non vengono troncate.
 
 ### Corretto
 - **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le
   read vuote, così l'attesa di una risposta non satura più un core.
 - **Troncamento silenzioso in `write_phonebook`**: ora restituisce un errore
   invece di troncare nome/numero più lunghi del campo lunghezza a un byte.
+- **Wedge del `Fbus2Reader` su rumore di linea**: un falso marker `0x1E` che
+  dichiara una lunghezza implausibile non blocca più il reader all'infinito —
+  risincronizza e il buffer resta limitato (test fuzz pseudo-casuale).
 
 ### Modificato
 - L'inglese è ora lo standard per la documentazione; la descrizione del
