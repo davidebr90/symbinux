@@ -44,6 +44,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **Retransmission window** (`ExchangeConfig` / `exchange_fbus2_with`): the
   command is resent when the phone stays silent past a per-attempt timeout
   (gnokii-style), up to N retries, before failing — tested with mock transports.
+- **GUI identity card**: the Identify button now shows the decoded model /
+  firmware / date as a tidy card (via `identify --json`) instead of raw text.
+- **CLI `completions`** subcommand (bash/zsh/fish/…) and `identify --json`.
+- **Flatpak packaging**: a `.desktop` launcher, AppStream `metainfo.xml`, an app
+  icon and installed shell completions; the manifest also opens the D-Bus names
+  needed for Bluetooth (BlueZ/obexd) and Wi-Fi (NetworkManager).
 
 ### Fixed
 - **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty

@@ -52,10 +52,17 @@ id grezzi anche per cavi non riconosciuti. Non esegue I/O col telefono.
 |---|---|---|
 | `devices [--all] [--json]` | Enumerazione avanzata. Senza `--all` mostra solo telefoni e cavi bridge noti. `--json` produce un formato macchina stabile. | Confermato |
 | `detect [--progress] [--json]` | Rileva automaticamente piattaforma e capability del telefono collegato. `--json` per lo scripting. | Confermato |
-| `identify --port <p>` | Query versione HW/SW su cavo seriale. | Confermato |
+| `ports [--json]` | Elenca le porte seriali esposte dal SO (con id USB). | Confermato |
+| `identify [--port <p>] [--usb] [--json]` | Query versione HW/SW. `--usb` fa claim diretto del Nokia via libusb (nessun driver seriale); `--json` stampa modello/firmware/data decodificati. | Confermato |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Legge una voce di rubrica. | Confermato |
 | `netmon --port <p> [--screen <n>]` | Schermata/controllo netmonitor. | Confermato |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Invia un frame FBUS/2 arbitrario (reverse engineering). | Sperimentale |
+| `completions <bash\|zsh\|fish\|…>` | Stampa uno script di completamento shell su stdout. | Confermato |
+
+Nella GUI, il pulsante **Identifica** mostra l'identità decodificata come scheda
+(modello / firmware / data) invece che testo grezzo, risolvendo automaticamente
+la porta seriale del telefono. Vedi `docs/CONNECTION_MODEL.md` per i percorsi
+app-owned USB/Bluetooth.
 
 Ogni comando telefono invia prima il preambolo di init `0x55`, poi la richiesta
 in frame, e stampa i byte richiesti, l'ACK e la risposta decodificata (con resa

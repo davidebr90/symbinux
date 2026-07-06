@@ -48,6 +48,13 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 - **Finestra di ritrasmissione** (`ExchangeConfig` / `exchange_fbus2_with`): il
   comando viene rinviato se il telefono resta in silenzio oltre un timeout per
   tentativo (stile gnokii), fino a N retry, prima di fallire — testato con mock.
+- **Scheda identità nella GUI**: il pulsante Identifica ora mostra modello /
+  firmware / data decodificati come scheda (via `identify --json`) invece che
+  testo grezzo.
+- **Subcomando CLI `completions`** (bash/zsh/fish/…) e `identify --json`.
+- **Packaging Flatpak**: launcher `.desktop`, `metainfo.xml` AppStream, icona e
+  completamenti shell installati; il manifest apre anche i nomi D-Bus necessari
+  per Bluetooth (BlueZ/obexd) e Wi-Fi (NetworkManager).
 
 ### Corretto
 - **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le

@@ -63,8 +63,11 @@ cargo build --release
 # Cosa è collegato ora (senza telefono):
 target/release/symbinux-fbus devices --all
 
-# Identifica un telefono via cavo DKU-2/CA-42:
+# Identifica un telefono via cavo DKU-2/CA-42 (o --usb per il claim diretto):
 target/release/symbinux-fbus identify --port /dev/nokia_fbus
+
+# Completamenti shell (bash/zsh/fish/…):
+target/release/symbinux-fbus completions bash > ~/.local/share/bash-completion/completions/symbinux-fbus
 
 # GUI
 pip install -e ".[gui]"
@@ -72,7 +75,9 @@ symbinux
 ```
 
 L'accesso non privilegiato (niente `sudo` nell'uso normale) richiede
-un'installazione udev una tantum — vedi [docs/SETUP.md](docs/SETUP.md).
+un'installazione udev una tantum — vedi [docs/SETUP.md](docs/SETUP.md). Come
+l'app possiede la connessione (claim diretto dell'USB, pairing Bluetooth forzato)
+è descritto in [docs/CONNECTION_MODEL.md](docs/CONNECTION_MODEL.md).
 
 ## Requisiti
 

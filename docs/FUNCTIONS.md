@@ -50,10 +50,17 @@ unrecognised cables. It performs no phone I/O.
 |---|---|---|
 | `devices [--all] [--json]` | Advanced device enumeration. Without `--all`, shows only phones and known cable bridges. `--json` emits a stable machine format. | Confirmed |
 | `detect [--progress] [--json]` | Auto-detect a connected phone's platform and capabilities. `--json` for scripting. | Confirmed |
-| `identify --port <p>` | HW/SW version query over a serial cable. | Confirmed |
+| `ports [--json]` | List the serial ports the OS exposes (with USB ids). | Confirmed |
+| `identify [--port <p>] [--usb] [--json]` | HW/SW version query. `--usb` claims the Nokia device directly via libusb (no serial driver needed); `--json` prints the decoded model/firmware/date. | Confirmed |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Read a phonebook entry. | Confirmed |
 | `netmon --port <p> [--screen <n>]` | Netmonitor screen / control. | Confirmed |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Send an arbitrary FBUS/2 frame (reverse-engineering). | Experimental |
+| `completions <bash\|zsh\|fish\|…>` | Print a shell completion script to stdout. | Confirmed |
+
+In the GUI, the **Identify** button shows the decoded identity as a card
+(model / firmware / date) rather than raw text, resolving the phone's serial port
+automatically. See `docs/CONNECTION_MODEL.md` for the app-owned USB/Bluetooth
+paths.
 
 Every phone command first sends the `0x55` init preamble, then the framed
 request, and prints the request bytes, the ACK, and the decoded reply (with an
