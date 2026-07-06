@@ -12,12 +12,16 @@ finish-args:
   - --socket=wayland
   - --device=all # udev (USB) and BlueZ (Bluetooth) access
   - --system-talk-name=org.freedesktop.login1 # uaccess for phone devices
+  - --system-talk-name=org.bluez # Bluetooth pairing/scan (app-driven)
+  - --system-talk-name=org.freedesktop.NetworkManager # Wi-Fi scan (nmcli)
+  - --talk-name=org.bluez.obex # PBAP contacts over the session bus
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
 
 modules:
-  # 1) Rust core + CLI (`symbinux-fbus`), used by the GUI at runtime.
+  # 1) Rust core + CLI (`symbinux-fbus`), used by the GUI at runtime, plus shell
+  #    completions generated from the built binary.
   - name: symbinux-core
     buildsystem: simple
     build-options:
@@ -26,15 +30,23 @@ modules:
     build-commands:
       - cargo build --release --offline --bin symbinux-fbus || cargo build --release --bin symbinux-fbus
       - install -Dm755 target/release/symbinux-fbus /app/bin/symbinux-fbus
+      - install -d /app/share/bash-completion/completions /app/share/zsh/site-functions /app/share/fish/vendor_completions.d
+      - target/release/symbinux-fbus completions bash > /app/share/bash-completion/completions/symbinux-fbus
+      - target/release/symbinux-fbus completions zsh > /app/share/zsh/site-functions/_symbinux-fbus
+      - target/release/symbinux-fbus completions fish > /app/share/fish/vendor_completions.d/symbinux-fbus.fish
     sources:
       - type: dir
         path: ../..
 
-  # 2) Python GTK GUI (`symbinux`), which shells out to symbinux-fbus.
+  # 2) Python GTK GUI (`symbinux`), plus the desktop file, AppStream metainfo and
+  #    the application icon.
   - name: symbinux-gui
     buildsystem: simple
     build-commands:
       - pip3 install --no-build-isolation --prefix=/app .
+      - install -Dm644 packaging/flatpak/it.davidebr90.Symbinux.desktop /app/share/applications/it.davidebr90.Symbinux.desktop
+      - install -Dm644 packaging/flatpak/it.davidebr90.Symbinux.metainfo.xml /app/share/metainfo/it.davidebr90.Symbinux.metainfo.xml
+      - install -Dm644 assets/logo/symbinux_logo_transparent_light.png /app/share/icons/hicolor/256x256/apps/it.davidebr90.Symbinux.png
     sources:
       - type: dir
         path: ../..

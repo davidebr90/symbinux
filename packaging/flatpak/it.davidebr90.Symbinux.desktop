@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Symbinux
+GenericName=Legacy phone tool
+Comment=Talk to legacy Nokia phones over FBUS/MBUS
+Exec=symbinux
+Icon=it.davidebr90.Symbinux
+Terminal=false
+Type=Application
+Categories=Utility;GTK;
+Keywords=Nokia;phone;FBUS;MBUS;USB;Bluetooth;

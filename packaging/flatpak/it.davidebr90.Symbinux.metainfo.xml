@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>it.davidebr90.Symbinux</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <name>Symbinux</name>
+  <summary>Talk to legacy Nokia phones over FBUS/MBUS</summary>
+  <description>
+    <p>
+      Symbinux communicates with legacy Nokia phones (Series 40/60, BB5) over the
+      FBUS/MBUS serial protocols via USB, and auto-detects a connected phone's
+      platform (Nokia legacy / Android / Apple iOS). It is a modern, clean-room
+      reimplementation inspired by the Nokinux project, with a Rust core and a
+      GTK4/libadwaita interface.
+    </p>
+    <p>
+      The app owns the connection: it can claim the USB device directly and force
+      a Bluetooth pairing, rather than depending on the operating system's default
+      drivers. It uses no proprietary Nokia code.
+    </p>
+  </description>
+  <launchable type="desktop-id">it.davidebr90.Symbinux.desktop</launchable>
+  <url type="homepage">https://github.com/davidebr90/symbinux</url>
+  <url type="bugtracker">https://github.com/davidebr90/symbinux/issues</url>
+  <developer id="io.github.davidebr90">
+    <name>Davide Pica</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.4.0" date="2026-07-06"/>
+  </releases>
+</component>
