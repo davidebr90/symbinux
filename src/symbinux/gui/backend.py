@@ -273,15 +273,58 @@ def scan_bluetooth(duration: int = 8) -> list[BluetoothDevice]:
     return devices
 
 
+def ensure_paired(address: str) -> None:
+    """App-driven Bluetooth pairing: force-pair and connect a device via BlueZ
+    (system bus), rather than requiring it to be pre-paired in the OS.
+
+    Best-effort and non-fatal — the caller (PBAP) reports the real outcome. This
+    is the "force the link" step; it needs a real adapter to exercise and may
+    require confirming a code on the phone. Not validated on-device.
+    """
+    try:
+        import dbus  # python3-dbus
+    except ImportError:
+        return
+    try:
+        bus = dbus.SystemBus()
+        mgr = dbus.Interface(
+            bus.get_object("org.bluez", "/"), "org.freedesktop.DBus.ObjectManager"
+        )
+        objects = mgr.GetManagedObjects()
+        target = address.upper()
+        device_path = None
+        for path, ifaces in objects.items():
+            dev = ifaces.get("org.bluez.Device1")
+            if dev and str(dev.get("Address", "")).upper() == target:
+                if bool(dev.get("Paired", False)):
+                    return  # already paired
+                device_path = path
+                break
+        if device_path is None:
+            adapter = next((p for p, i in objects.items() if "org.bluez.Adapter1" in i), None)
+            if adapter is None:
+                return
+            device_path = f"{adapter}/dev_" + target.replace(":", "_")
+        device = dbus.Interface(bus.get_object("org.bluez", device_path), "org.bluez.Device1")
+        for op in (device.Pair, device.Connect):
+            try:
+                op()
+            except Exception:  # noqa: BLE001 - already paired / needs on-device confirm
+                pass
+    except Exception:  # noqa: BLE001 - non-fatal; PBAP surfaces real errors
+        return
+
+
 def pull_contacts_pbap(address: str, timeout: float = 30.0) -> str:
     """Pull a phone's contacts over Bluetooth PBAP via BlueZ obexd (D-Bus).
 
-    Returns the phonebook as vCard text. Requires the device to be paired and the
-    obexd session daemon running. Raises `BackendUnavailable` with actionable
-    text when the stack isn't present — never a fake result.
+    Force-pairs the device first (app-driven), then pulls the phonebook as vCard
+    text. Raises `BackendUnavailable` with actionable text when the stack isn't
+    present — never a fake result.
 
-    NOTE: this drives the standard `org.bluez.obex` API; it needs real Bluetooth
-    hardware + a paired phone to exercise and has not been validated on-device.
+    NOTE: this drives the standard `org.bluez` + `org.bluez.obex` APIs; it needs
+    real Bluetooth hardware + a phone to exercise and has not been validated
+    on-device.
     """
     try:
         import dbus  # python3-dbus
@@ -292,6 +335,9 @@ def pull_contacts_pbap(address: str, timeout: float = 30.0) -> str:
 
     import tempfile
     import time
+
+    # Force the pairing/connection before talking PBAP (best-effort).
+    ensure_paired(address)
 
     try:
         bus = dbus.SessionBus()

@@ -29,11 +29,12 @@ Symbinux takes the device from the OS and speaks the protocol itself:
   the FBUS bulk endpoints, and drives the protocol — no `/dev/ttyUSB` required.
   This is how a DKU-2 native-USB or BB5 phone is reached on a machine with no
   serial driver. Exposed as `symbinux-fbus identify --usb`.
-- **Bluetooth (planned, app-driven pairing)**: rather than requiring the phone
-  to be pre-paired in the OS, the app should drive BlueZ `Adapter1` /
-  `Device1.Pair` + `Device1.Connect` over D-Bus to *force* the pairing, then open
-  its own RFCOMM channel for FBUS/OBEX. The contacts pull (`pull_contacts_pbap`)
-  is the first obexd-backed step; app-driven pairing is the next.
+- **Bluetooth (app-driven pairing)**: rather than requiring the phone to be
+  pre-paired in the OS, the app drives BlueZ `Device1.Pair` + `Device1.Connect`
+  over D-Bus to *force* the pairing (`ensure_paired`), then pulls contacts over
+  obexd PBAP (`pull_contacts_pbap` force-pairs first). Opening a raw RFCOMM
+  channel for direct FBUS/OBEX is the next step. Needs a real adapter to
+  validate; pairing may require confirming a code on the phone.
 
 > On Linux the app still rides the kernel USB/Bluetooth stacks (via libusb /
 > BlueZ) — you cannot bypass the kernel entirely. What the app *does* bypass is
@@ -57,7 +58,7 @@ Symbinux takes the device from the OS and speaks the protocol itself:
 |---|---|
 | Serial (OS ttyUSB) | Works; needs an OS serial driver. |
 | **Raw USB (app-owned, `--usb`)** | Implemented — claims the device via libusb, auto-discovers endpoints; needs real hardware to validate on-device. |
-| Bluetooth scan / PBAP contacts | Implemented via BlueZ/obexd; app-driven *pairing* is the next step. |
+| Bluetooth scan / PBAP contacts | Implemented via BlueZ/obexd, with app-driven *pairing* (force pair + connect). Needs hardware to validate. |
 | Android/iOS | Dispatch + capabilities only; real transfer via `adb_client`/`idevice` is future work. |
 
 See `docs/ROADMAP.md` for the sequence and `docs/DEVICE_DETECTION.md` for how a
