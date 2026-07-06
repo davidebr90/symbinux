@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Symbinux 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 12:34+0200\n"
+"POT-Creation-Date: 2026-07-06 16:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -119,7 +119,7 @@ msgstr ""
 msgid "Phone identity"
 msgstr ""
 
-#: src/symbinux/gui/window.py:327 src/symbinux/gui/window.py:504
+#: src/symbinux/gui/window.py:327 src/symbinux/gui/window.py:511
 msgid "Close"
 msgstr ""
 
@@ -147,54 +147,59 @@ msgstr ""
 msgid "No wireless networks are in range."
 msgstr ""
 
-#: src/symbinux/gui/window.py:373 src/symbinux/gui/window.py:376
+#: src/symbinux/gui/window.py:375 src/symbinux/gui/window.py:379
 msgid "Detecting devices…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:387
+#: src/symbinux/gui/window.py:375 src/symbinux/gui/window.py:419
+#: src/symbinux/gui/window.py:489
+msgid "Cancel"
+msgstr ""
+
+#: src/symbinux/gui/window.py:390
 msgid "Core not available"
 msgstr ""
 
-#: src/symbinux/gui/window.py:394
+#: src/symbinux/gui/window.py:397
 msgid "No phone or cable detected"
 msgstr ""
 
-#: src/symbinux/gui/window.py:396
+#: src/symbinux/gui/window.py:399
 msgid ""
 "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh "
 "button. Use Advanced to inspect every USB device."
 msgstr ""
 
-#: src/symbinux/gui/window.py:438
+#: src/symbinux/gui/window.py:442
 msgid "paired"
 msgstr ""
 
-#: src/symbinux/gui/window.py:442 src/symbinux/gui/window.py:456
-#: src/symbinux/gui/window.py:460
+#: src/symbinux/gui/window.py:446 src/symbinux/gui/window.py:460
+#: src/symbinux/gui/window.py:464
 msgid "Contacts"
 msgstr ""
 
-#: src/symbinux/gui/window.py:449
+#: src/symbinux/gui/window.py:453
 msgid "Fetching contacts…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:456
+#: src/symbinux/gui/window.py:460
 msgid "No contacts."
 msgstr ""
 
-#: src/symbinux/gui/window.py:483
+#: src/symbinux/gui/window.py:489
 msgid "Scanning USB…"
 msgstr ""
 
-#: src/symbinux/gui/window.py:491
+#: src/symbinux/gui/window.py:498
 msgid "No USB devices visible to the host."
 msgstr ""
 
-#: src/symbinux/gui/window.py:494
+#: src/symbinux/gui/window.py:501
 msgid "Connected USB devices"
 msgstr ""
 
-#: src/symbinux/gui/window.py:498
+#: src/symbinux/gui/window.py:505
 msgid "Advanced diagnostics"
 msgstr ""
 

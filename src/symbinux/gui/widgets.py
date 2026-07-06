@@ -21,27 +21,39 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 
+class CancelToken:
+    """A one-shot cancellation flag shared with a background operation."""
+
+    def __init__(self) -> None:
+        self.cancelled = False
+
+    def cancel(self) -> None:
+        self.cancelled = True
+
+
 def run_async(
     work: Callable[[], object],
     on_done: Callable[[object], None],
     on_error: Callable[[Exception], None] | None = None,
+    token: CancelToken | None = None,
 ) -> None:
     """Run ``work()`` on a worker thread and deliver the result back on the GTK
-    main loop via ``on_done`` (or ``on_error``)."""
+    main loop. If ``token`` is cancelled by the time the result arrives, the
+    callbacks are skipped (the user dismissed the wait)."""
 
     def target() -> None:
         try:
             result = work()
         except Exception as exc:  # noqa: BLE001 - surfaced to on_error
-            GLib.idle_add(_dispatch, on_error, exc)
+            GLib.idle_add(_dispatch, on_error, exc, token)
             return
-        GLib.idle_add(_dispatch, on_done, result)
+        GLib.idle_add(_dispatch, on_done, result, token)
 
     threading.Thread(target=target, daemon=True).start()
 
 
-def _dispatch(callback, arg) -> bool:
-    if callback is not None:
+def _dispatch(callback, arg, token) -> bool:
+    if callback is not None and (token is None or not token.cancelled):
         callback(arg)
     return False  # run once
 
@@ -72,27 +84,61 @@ class ProgressPanel(Gtk.Revealer):
         self._bar.set_hexpand(True)
         self._bar.set_valign(Gtk.Align.CENTER)
 
+        self._cancel_button = Gtk.Button()
+        self._cancel_button.add_css_class("flat")
+        self._cancel_button.set_valign(Gtk.Align.CENTER)
+        self._cancel_button.connect("clicked", self._on_cancel_clicked)
+        self._on_cancel: Callable[[], None] | None = None
+
         box.append(self._spinner)
         box.append(self._label)
         box.append(self._bar)
+        box.append(self._cancel_button)
         self.set_child(box)
 
         # Nothing shows until an operation explicitly requests a mode.
         self._spinner.set_visible(False)
         self._bar.set_visible(False)
+        self._cancel_button.set_visible(False)
 
-    def indeterminate(self, text: str) -> None:
+    def _configure_cancel(self, label: str | None, on_cancel: Callable[[], None] | None) -> None:
+        self._on_cancel = on_cancel
+        if on_cancel is not None and label is not None:
+            self._cancel_button.set_label(label)
+            self._cancel_button.set_visible(True)
+        else:
+            self._cancel_button.set_visible(False)
+
+    def _on_cancel_clicked(self, _button) -> None:
+        callback = self._on_cancel
+        self.finish()
+        if callback is not None:
+            callback()
+
+    def indeterminate(
+        self,
+        text: str,
+        on_cancel: Callable[[], None] | None = None,
+        cancel_label: str | None = None,
+    ) -> None:
         self._spinner.set_visible(True)
         self._bar.set_visible(False)
         self._label.set_text(text)
+        self._configure_cancel(cancel_label, on_cancel)
         self.set_reveal_child(True)
 
-    def determinate(self, text: str) -> None:
+    def determinate(
+        self,
+        text: str,
+        on_cancel: Callable[[], None] | None = None,
+        cancel_label: str | None = None,
+    ) -> None:
         self._spinner.set_visible(False)
         self._bar.set_visible(True)
         self._bar.set_fraction(0.0)
         self._bar.set_text("0%")
         self._label.set_text(text)
+        self._configure_cancel(cancel_label, on_cancel)
         self.set_reveal_child(True)
 
     def set_progress(self, fraction: float, label: str | None = None) -> None:

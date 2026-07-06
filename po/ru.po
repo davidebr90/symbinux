@@ -150,3 +150,6 @@ msgstr "Прошивка"
 
 msgid "Date"
 msgstr "Дата"
+
+msgid "Cancel"
+msgstr "Отмена"

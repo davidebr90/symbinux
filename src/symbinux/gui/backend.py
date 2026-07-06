@@ -212,12 +212,13 @@ def resolve_port() -> str | None:
     return usb[0].path if len(usb) == 1 else None
 
 
-def detect_devices(progress_cb=None, timeout: float = 15.0) -> list[DetectedPhone]:
+def detect_devices(progress_cb=None, timeout: float = 15.0, cancel=None) -> list[DetectedPhone]:
     """Run `detect --progress`, driving `progress_cb(fraction, stage)` from the
     real `PROGRESS done total stage` lines, and return the detected phones.
 
     The fractions come straight from the cascade's completed steps — this is a
-    genuine progress signal, not a timed animation.
+    genuine progress signal, not a timed animation. If `cancel` (an object with a
+    `.cancelled` flag) is set mid-scan, the subprocess is killed.
     """
     binary = _find_binary()
     try:
@@ -233,6 +234,9 @@ def detect_devices(progress_cb=None, timeout: float = 15.0) -> list[DetectedPhon
     phones: list[DetectedPhone] = []
     assert proc.stdout is not None
     for line in proc.stdout:
+        if cancel is not None and getattr(cancel, "cancelled", False):
+            proc.kill()
+            break
         line = line.rstrip("\n")
         if line.startswith("PROGRESS "):
             parts = line.split(None, 3)

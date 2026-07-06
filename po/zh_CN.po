@@ -150,3 +150,6 @@ msgstr "固件"
 
 msgid "Date"
 msgstr "日期"
+
+msgid "Cancel"
+msgstr "取消"

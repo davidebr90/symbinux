@@ -63,6 +63,11 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   (**11 lingue** totali).
 - **Errori GUI utili**: i fallimenti comuni (permesso negato, porta seriale
   mancante, timeout) ora riportano un suggerimento su come risolvere.
+- **File di config CLI** (`~/.config/symbinux/config.toml`, `%APPDATA%` su
+  Windows): `default_port`, `ack_timeout_ms`, `retries` e `log_level` opzionali;
+  i comandi usano `default_port` quando `--port` è omesso.
+- **Pulsante Annulla** nel pannello di progresso: chiude una scansione in corso
+  (e killa il subprocess `detect`). "Annulla" tradotto in tutte le lingue.
 
 ### Corretto
 - **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le

@@ -59,6 +59,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   (**11 languages** total).
 - **Actionable GUI errors**: common failures (permission denied, missing serial
   port, timeout) now carry a hint pointing at the fix.
+- **CLI config file** (`~/.config/symbinux/config.toml`, `%APPDATA%` on Windows):
+  optional `default_port`, `ack_timeout_ms`, `retries` and `log_level`; commands
+  fall back to `default_port` when `--port` is omitted.
+- **Cancel button** on the progress panel: dismisses a running scan (and kills
+  the `detect` subprocess). "Cancel" translated in all languages.
 
 ### Fixed
 - **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty

@@ -27,7 +27,7 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 from symbinux import __version__
 from symbinux.gui import backend, theme
 from symbinux.gui.i18n import N_, NATIVE_LANGUAGES, _
-from symbinux.gui.widgets import ProgressPanel, run_async
+from symbinux.gui.widgets import CancelToken, ProgressPanel, run_async
 
 CHANNELS = [
     ("usb", "USB", "drive-harddisk-usb-symbolic"),
@@ -370,13 +370,16 @@ class SymbinuxWindow(Adw.ApplicationWindow):
 
         # USB: staged detection with a real percentage bar (the bar advances as
         # the cascade completes actual steps reported by the core, not on a timer).
-        self._progress.determinate(_("Detecting devices…"))
+        token = CancelToken()
+        self._progress.determinate(
+            _("Detecting devices…"), on_cancel=token.cancel, cancel_label=_("Cancel")
+        )
 
         def on_progress(fraction, _stage):
             GLib.idle_add(self._progress.set_progress, fraction, _("Detecting devices…"))
 
         def work():
-            return backend.detect_devices(progress_cb=on_progress)
+            return backend.detect_devices(progress_cb=on_progress, cancel=token)
 
         def done(phones):
             self._progress.finish()
@@ -386,7 +389,7 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             self._progress.finish()
             self._show_empty(title=_("Core not available"), description=str(exc))
 
-        run_async(work, done, failed)
+        run_async(work, done, failed, token=token)
 
     def _populate(self, phones) -> None:
         if not phones:
@@ -412,7 +415,8 @@ class SymbinuxWindow(Adw.ApplicationWindow):
 
     def _scan_wireless(self, scan_fn, row_builder, busy: str, empty_title: str, empty_desc: str) -> None:
         """Run a real Bluetooth/Wi-Fi scan off the UI thread with a spinner."""
-        self._progress.indeterminate(busy)
+        token = CancelToken()
+        self._progress.indeterminate(busy, on_cancel=token.cancel, cancel_label=_("Cancel"))
 
         def work():
             return scan_fn()
@@ -430,7 +434,7 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             self._progress.finish()
             self._show_empty(title=empty_title, description=str(exc))
 
-        run_async(work, done, failed)
+        run_async(work, done, failed, token=token)
 
     def _bluetooth_row(self, device) -> Adw.ActionRow:
         subtitle = device.address
@@ -480,7 +484,10 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         self._device_stack.set_visible_child_name("empty")
 
     def _show_advanced(self) -> None:
-        self._progress.indeterminate(_("Scanning USB…"))
+        token = CancelToken()
+        self._progress.indeterminate(
+            _("Scanning USB…"), on_cancel=token.cancel, cancel_label=_("Cancel")
+        )
 
         def work():
             return backend.list_usb_devices(include_all=True)
@@ -497,7 +504,7 @@ class SymbinuxWindow(Adw.ApplicationWindow):
             self._progress.finish()
             self._present_text_dialog(_("Advanced diagnostics"), str(exc))
 
-        run_async(work, done, failed)
+        run_async(work, done, failed, token=token)
 
     def _present_text_dialog(self, heading: str, body: str) -> None:
         dialog = Adw.MessageDialog(transient_for=self, heading=heading, body=body)

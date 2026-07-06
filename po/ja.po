@@ -150,3 +150,6 @@ msgstr "ファームウェア"
 
 msgid "Date"
 msgstr "日付"
+
+msgid "Cancel"
+msgstr "キャンセル"

@@ -4,8 +4,6 @@
 //! "advanced" device-enumeration mode for debugging what is physically
 //! connected, and a raw-frame mode for protocol reverse-engineering.
 
-use std::time::Duration;
-
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
@@ -16,9 +14,12 @@ use symbinux_devices::{detect_staged, dispatch, DeviceKind};
 use symbinux_protocol::message::{self, MemoryType, Safety};
 use symbinux_protocol::{decode_sms_deliver, hw_sw_version, reassemble_fbus2, Fbus2Frame};
 use symbinux_transport::{
-    available_serial_ports, exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport,
-    UsbTransport,
+    available_serial_ports, exchange_fbus2_with, list_usb_devices, ExchangeConfig, Role,
+    SerialTransport, Transport, UsbTransport,
 };
+
+mod config;
+use config::Config;
 
 /// Nokia Mobile Phones USB vendor id (used by the app-owned USB path).
 const NOKIA_VID: u16 = 0x0421;
@@ -96,8 +97,9 @@ enum Commands {
     },
     /// Read a phonebook entry.
     Getphonebook {
+        /// Serial port; falls back to `default_port` from config.toml.
         #[arg(long)]
-        port: String,
+        port: Option<String>,
         /// Memory: me (phone), sim, combined, own, dialled, missed.
         #[arg(long, default_value = "me")]
         mem: String,
@@ -107,16 +109,18 @@ enum Commands {
     },
     /// Show or control the netmonitor.
     Netmon {
+        /// Serial port; falls back to `default_port` from config.toml.
         #[arg(long)]
-        port: String,
+        port: Option<String>,
         /// Screen number, or 255 for "next".
         #[arg(long, default_value_t = 255)]
         screen: u8,
     },
     /// Send a raw FBUS/2 frame (reverse-engineering mode). Prints the reply.
     Raw {
+        /// Serial port; falls back to `default_port` from config.toml.
         #[arg(long)]
-        port: String,
+        port: Option<String>,
         /// Message type byte, e.g. 0xD1.
         #[arg(long, value_parser = parse_u8_hex)]
         msg_type: u8,
@@ -222,7 +226,11 @@ fn hexdump(bytes: &[u8]) -> String {
 
 /// Send the FBUS init preamble over an already-open transport, run the command,
 /// print the reply. Generic so it works over serial OR the app-owned raw USB.
-fn run_command<T: Transport>(mut link: T, cmd: &message::Command) -> Result<()> {
+fn run_command<T: Transport>(
+    mut link: T,
+    cmd: &message::Command,
+    xcfg: &ExchangeConfig,
+) -> Result<()> {
     if cmd.safety == Safety::Dangerous {
         bail!(
             "refusing to send '{}': classified Dangerous (firmware/flash). Not supported.",
@@ -237,7 +245,7 @@ fn run_command<T: Transport>(mut link: T, cmd: &message::Command) -> Result<()> 
     let request = cmd.frame.encode();
     debug!("request {} = {}", cmd.name, hexdump(&request));
     println!("→ {} : {}", cmd.name, hexdump(&request));
-    let frames = exchange_fbus2(&mut link, &cmd.frame, Duration::from_millis(1500))
+    let frames = exchange_fbus2_with(&mut link, &cmd.frame, xcfg)
         .context("no valid reply from the phone")?;
 
     let mut got_data = false;
@@ -280,20 +288,20 @@ fn open_serial(port: &str) -> Result<SerialTransport> {
 }
 
 /// Run `identify` over an open transport, in human or JSON form.
-fn run_identify<T: Transport>(link: T, as_json: bool) -> Result<()> {
+fn run_identify<T: Transport>(link: T, as_json: bool, xcfg: &ExchangeConfig) -> Result<()> {
     if as_json {
-        identify_json(link)
+        identify_json(link, xcfg)
     } else {
-        run_command(link, &message::identify_hw_sw(0x40))
+        run_command(link, &message::identify_hw_sw(0x40), xcfg)
     }
 }
 
 /// Send the identify command and print the decoded identity as JSON.
-fn identify_json<T: Transport>(mut link: T) -> Result<()> {
+fn identify_json<T: Transport>(mut link: T, xcfg: &ExchangeConfig) -> Result<()> {
     let cmd = message::identify_hw_sw(0x40);
     link.write_all(&message::fbus_init_preamble(128))
         .context("sending FBUS init preamble")?;
-    let frames = exchange_fbus2(&mut link, &cmd.frame, Duration::from_millis(1500))
+    let frames = exchange_fbus2_with(&mut link, &cmd.frame, xcfg)
         .context("no valid reply from the phone")?;
 
     let obj = match reassemble_fbus2(&frames) {
@@ -478,11 +486,22 @@ fn truncate(s: &str, n: usize) -> String {
     }
 }
 
-fn main() -> Result<()> {
-    // Logging goes to stderr (RUST_LOG=debug for frame traces); stdout stays
-    // clean for the machine-readable output the GUI parses.
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+fn resolve_port_arg(port: Option<String>, cfg: &Config) -> Result<String> {
+    port.or_else(|| cfg.default_port.clone())
+        .context("no --port given and no default_port set in config.toml")
+}
 
+fn main() -> Result<()> {
+    let cfg = Config::load();
+
+    // Logging goes to stderr (RUST_LOG=debug for frame traces); stdout stays
+    // clean for the machine-readable output the GUI parses. The default filter
+    // comes from config.toml unless RUST_LOG overrides it.
+    let default_level = cfg.log_level.clone().unwrap_or_else(|| "warn".to_string());
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(default_level))
+        .init();
+
+    let xcfg = cfg.exchange();
     let cli = Cli::parse();
     match cli.command {
         Commands::Devices { all, json } => cmd_devices(all, json),
@@ -492,12 +511,11 @@ fn main() -> Result<()> {
             if usb {
                 let link = UsbTransport::open_fbus_auto(NOKIA_VID)
                     .context("claiming the Nokia USB device")?;
-                run_identify(link, json)
+                run_identify(link, json, &xcfg)
             } else {
-                let p = port
-                    .as_deref()
-                    .context("provide --port <path>, or --usb to claim the device directly")?;
-                run_identify(open_serial(p)?, json)
+                let p = resolve_port_arg(port, &cfg)
+                    .context("provide --port <path>, --usb, or a default_port in config.toml")?;
+                run_identify(open_serial(&p)?, json, &xcfg)
             }
         }
         Commands::Completions { shell } => {
@@ -519,14 +537,17 @@ fn main() -> Result<()> {
             location,
         } => {
             let mem = parse_mem(&mem)?;
+            let p = resolve_port_arg(port, &cfg)?;
             run_command(
-                open_serial(&port)?,
+                open_serial(&p)?,
                 &message::read_phonebook(mem, location, 0x40),
+                &xcfg,
             )
         }
         Commands::Netmon { port, screen } => {
             let field = if screen == 255 { 0x00 } else { screen };
-            run_command(open_serial(&port)?, &message::netmonitor(field, 0x40))
+            let p = resolve_port_arg(port, &cfg)?;
+            run_command(open_serial(&p)?, &message::netmonitor(field, 0x40), &xcfg)
         }
         Commands::Raw {
             port,
@@ -544,7 +565,8 @@ fn main() -> Result<()> {
                 safety: Safety::Experimental,
                 frame,
             };
-            run_command(open_serial(&port)?, &cmd)
+            let p = resolve_port_arg(port, &cfg)?;
+            run_command(open_serial(&p)?, &cmd, &xcfg)
         }
     }
 }

@@ -150,3 +150,6 @@ msgstr "Firmware"
 
 msgid "Date"
 msgstr "Data"
+
+msgid "Cancel"
+msgstr "Annulla"
