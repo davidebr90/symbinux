@@ -45,6 +45,9 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 - **Riassemblaggio risposte multi-frame**: `exchange_fbus2` legge una risposta
   frammentata fino all'ultimo frame e `reassemble_fbus2` unisce i frammenti in
   un unico payload (testato), così le risposte lunghe non vengono troncate.
+- **Finestra di ritrasmissione** (`ExchangeConfig` / `exchange_fbus2_with`): il
+  comando viene rinviato se il telefono resta in silenzio oltre un timeout per
+  tentativo (stile gnokii), fino a N retry, prima di fallire — testato con mock.
 
 ### Corretto
 - **Busy-loop della CPU in `exchange_fbus2`**: aggiunto un breve back-off tra le

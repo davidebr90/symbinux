@@ -41,6 +41,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **Multi-frame reply reassembly**: `exchange_fbus2` reads a fragmented reply to
   the last frame, and `reassemble_fbus2` concatenates the fragments into a single
   payload (unit-tested), so long phone responses aren't truncated.
+- **Retransmission window** (`ExchangeConfig` / `exchange_fbus2_with`): the
+  command is resent when the phone stays silent past a per-attempt timeout
+  (gnokii-style), up to N retries, before failing — tested with mock transports.
 
 ### Fixed
 - **CPU busy-loop in `exchange_fbus2`**: a short back-off is added between empty
