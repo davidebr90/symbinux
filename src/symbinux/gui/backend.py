@@ -149,9 +149,17 @@ def list_usb_devices(include_all: bool = False) -> list[Device]:
     return devices
 
 
-def identify(port: str) -> str:
-    """Run the identify command against a serial port, returning raw output."""
-    return _run(["identify", "--port", port], timeout=8.0)
+def identify(port: str) -> dict:
+    """Run identify against a serial port and return the decoded fields.
+
+    Returns a dict with `model`/`firmware`/`date`, or `{"error": ...}`.
+    """
+    out = _run(["identify", "--port", port, "--json"], timeout=8.0)
+    try:
+        data = json.loads(out)
+    except (ValueError, TypeError):
+        return {"error": out.strip() or "no output"}
+    return data if isinstance(data, dict) else {"error": "unexpected output"}
 
 
 def serial_ports() -> list[SerialPort]:

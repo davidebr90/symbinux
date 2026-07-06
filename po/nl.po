@@ -141,3 +141,12 @@ msgstr "Contacten ophalen…"
 
 msgid "No contacts."
 msgstr "Geen contacten."
+
+msgid "Model"
+msgstr "Model"
+
+msgid "Firmware"
+msgstr "Firmware"
+
+msgid "Date"
+msgstr "Datum"

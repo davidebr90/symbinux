@@ -7,13 +7,14 @@
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 use log::debug;
 use serde_json::json;
 
 use symbinux_devices::{detect_staged, dispatch, DeviceKind};
 use symbinux_protocol::message::{self, MemoryType, Safety};
-use symbinux_protocol::{hw_sw_version, Fbus2Frame};
+use symbinux_protocol::{hw_sw_version, reassemble_fbus2, Fbus2Frame};
 use symbinux_transport::{
     available_serial_ports, exchange_fbus2, list_usb_devices, Role, SerialTransport, Transport,
     UsbTransport,
@@ -72,6 +73,14 @@ enum Commands {
         /// port — the app-owned path that works without an OS serial driver.
         #[arg(long)]
         usb: bool,
+        /// Emit the decoded identity (model/firmware/date) as JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Print shell completions to stdout (bash, zsh, fish, powershell, elvish).
+    Completions {
+        #[arg(value_enum)]
+        shell: Shell,
     },
     /// Read a phonebook entry.
     Getphonebook {
@@ -199,6 +208,42 @@ fn run_command<T: Transport>(mut link: T, cmd: &message::Command) -> Result<()> 
 
 fn open_serial(port: &str) -> Result<SerialTransport> {
     SerialTransport::open_fbus(port).with_context(|| format!("opening serial port {port}"))
+}
+
+/// Run `identify` over an open transport, in human or JSON form.
+fn run_identify<T: Transport>(link: T, as_json: bool) -> Result<()> {
+    if as_json {
+        identify_json(link)
+    } else {
+        run_command(link, &message::identify_hw_sw(0x40))
+    }
+}
+
+/// Send the identify command and print the decoded identity as JSON.
+fn identify_json<T: Transport>(mut link: T) -> Result<()> {
+    let cmd = message::identify_hw_sw(0x40);
+    link.write_all(&message::fbus_init_preamble(128))
+        .context("sending FBUS init preamble")?;
+    let frames = exchange_fbus2(&mut link, &cmd.frame, Duration::from_millis(1500))
+        .context("no valid reply from the phone")?;
+
+    let obj = match reassemble_fbus2(&frames) {
+        Some((msg_type, data)) => {
+            let reply = Fbus2Frame {
+                dest: 0,
+                src: 0,
+                msg_type,
+                data,
+            };
+            match hw_sw_version(&reply) {
+                Some(v) => json!({"model": v.model, "firmware": v.firmware, "date": v.date}),
+                None => json!({"error": "reply is not a decodable HW/SW version"}),
+            }
+        }
+        None => json!({"error": "no data reply"}),
+    };
+    println!("{}", serde_json::to_string_pretty(&obj)?);
+    Ok(())
 }
 
 fn role_str(role: &Role) -> String {
@@ -374,18 +419,22 @@ fn main() -> Result<()> {
         Commands::Devices { all, json } => cmd_devices(all, json),
         Commands::Detect { progress, json } => cmd_detect(progress, json),
         Commands::Ports { json } => cmd_ports(json),
-        Commands::Identify { port, usb } => {
-            let cmd = message::identify_hw_sw(0x40);
+        Commands::Identify { port, usb, json } => {
             if usb {
                 let link = UsbTransport::open_fbus_auto(NOKIA_VID)
                     .context("claiming the Nokia USB device")?;
-                run_command(link, &cmd)
+                run_identify(link, json)
             } else {
                 let p = port
                     .as_deref()
                     .context("provide --port <path>, or --usb to claim the device directly")?;
-                run_command(open_serial(p)?, &cmd)
+                run_identify(open_serial(p)?, json)
             }
+        }
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            clap_complete::generate(shell, &mut cmd, "symbinux-fbus", &mut std::io::stdout());
+            Ok(())
         }
         Commands::Getphonebook {
             port,

@@ -141,3 +141,12 @@ msgstr "Obteniendo contactos…"
 
 msgid "No contacts."
 msgstr "Sin contactos."
+
+msgid "Model"
+msgstr "Modelo"
+
+msgid "Firmware"
+msgstr "Firmware"
+
+msgid "Date"
+msgstr "Fecha"

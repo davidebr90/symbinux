@@ -141,3 +141,12 @@ msgstr "Kontakte werden abgerufen…"
 
 msgid "No contacts."
 msgstr "Keine Kontakte."
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "Firmware"
+msgstr "Firmware"
+
+msgid "Date"
+msgstr "Datum"

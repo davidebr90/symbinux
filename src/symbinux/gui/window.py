@@ -301,15 +301,31 @@ class SymbinuxWindow(Adw.ApplicationWindow):
         def work():
             return backend.identify(port)
 
-        def done(output):
+        def done(data):
             self._progress.finish()
-            self._present_text_dialog(_("Phone identity"), output.strip() or _("No reply."))
+            if not isinstance(data, dict) or "error" in data:
+                message = data.get("error") if isinstance(data, dict) else str(data)
+                self._present_text_dialog(_("Identify"), message or _("No reply."))
+            else:
+                self._show_identity_card(data)
 
         def failed(exc):
             self._progress.finish()
             self._present_text_dialog(_("Identify"), str(exc))
 
         run_async(work, done, failed)
+
+    def _show_identity_card(self, data: dict) -> None:
+        """Present the decoded phone identity as a tidy card of properties."""
+        group = Adw.PreferencesGroup()
+        for label, key in ((_("Model"), "model"), (_("Firmware"), "firmware"), (_("Date"), "date")):
+            row = Adw.ActionRow(title=label, subtitle=str(data.get(key) or "?"))
+            row.add_css_class("property")
+            group.add(row)
+        dialog = Adw.MessageDialog(transient_for=self, heading=_("Phone identity"))
+        dialog.set_extra_child(group)
+        dialog.add_response("ok", _("Close"))
+        dialog.present()
 
     @staticmethod
     def _notify(app, title: str, body: str) -> None:
