@@ -1,0 +1,152 @@
+# Simplified Chinese translation for Symbinux.
+# Copyright (C) 2026 Davide Pica
+# This file is distributed under the same license as the Symbinux package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Symbinux 0.4.0\n"
+"Report-Msgid-Bugs-To: https://github.com/davidebr90/symbinux/issues\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Identify"
+msgstr "识别"
+
+msgid "Read model, IMEI and firmware"
+msgstr "读取型号、IMEI 和固件"
+
+msgid "Phonebook"
+msgstr "电话簿"
+
+msgid "Import / export contacts"
+msgstr "导入/导出联系人"
+
+msgid "SMS"
+msgstr "短信"
+
+msgid "Read and send messages"
+msgstr "读取和发送消息"
+
+msgid "Netmonitor"
+msgstr "网络监视器"
+
+msgid "Network diagnostics"
+msgstr "网络诊断"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Raw USB/Bluetooth device list"
+msgstr "USB/蓝牙设备原始列表"
+
+msgid "Rescan the selected channel"
+msgstr "重新扫描所选通道"
+
+msgid "Automatic"
+msgstr "自动"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "About Symbinux"
+msgstr "关于 Symbinux"
+
+msgid "Connect over a serial cable (/dev/ttyUSB*) to read phone identity."
+msgstr "通过串行电缆（/dev/ttyUSB*）连接以读取手机信息。"
+
+msgid "This function is not wired up yet on this channel."
+msgstr "此功能尚未在该通道上实现。"
+
+msgid "Scanning Bluetooth…"
+msgstr "正在扫描蓝牙…"
+
+msgid "No Bluetooth devices found"
+msgstr "未找到蓝牙设备"
+
+msgid "Make sure Bluetooth is on and nearby devices are discoverable."
+msgstr "请确保蓝牙已开启，且附近设备处于可被发现状态。"
+
+msgid "Scanning Wi-Fi…"
+msgstr "正在扫描 Wi-Fi…"
+
+msgid "No Wi-Fi networks found"
+msgstr "未找到 Wi-Fi 网络"
+
+msgid "No wireless networks are in range."
+msgstr "附近没有可用的无线网络。"
+
+msgid "Detecting devices…"
+msgstr "正在检测设备…"
+
+msgid "Core not available"
+msgstr "核心不可用"
+
+msgid "No phone or cable detected"
+msgstr "未检测到手机或数据线"
+
+msgid "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh button. Use Advanced to inspect every USB device."
+msgstr "使用 DKU-2/CA-42 数据线连接诺基亚手机，然后按刷新按钮。使用“高级”查看每个 USB 设备。"
+
+msgid "paired"
+msgstr "已配对"
+
+msgid "Scanning USB…"
+msgstr "正在扫描 USB…"
+
+msgid "No USB devices visible to the host."
+msgstr "主机未检测到任何 USB 设备。"
+
+msgid "Connected USB devices"
+msgstr "已连接的 USB 设备"
+
+msgid "Advanced diagnostics"
+msgstr "高级诊断"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Talk to legacy Nokia phones over FBUS/MBUS on modern Linux."
+msgstr "在现代 Linux 上通过 FBUS/MBUS 与旧款诺基亚手机通信。"
+
+msgid "Identifying…"
+msgstr "正在识别…"
+
+msgid "Phone identity"
+msgstr "手机信息"
+
+msgid "No reply."
+msgstr "无响应。"
+
+msgid "No serial port found — connect a DKU-2/CA-42 cable and try again."
+msgstr "未找到串行端口 — 请连接 DKU-2/CA-42 数据线后重试。"
+
+msgid "Contacts"
+msgstr "联系人"
+
+msgid "Fetching contacts…"
+msgstr "正在获取联系人…"
+
+msgid "No contacts."
+msgstr "没有联系人。"
+
+msgid "Model"
+msgstr "型号"
+
+msgid "Firmware"
+msgstr "固件"
+
+msgid "Date"
+msgstr "日期"

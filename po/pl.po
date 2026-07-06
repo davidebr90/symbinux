@@ -1,0 +1,152 @@
+# Polish translation for Symbinux.
+# Copyright (C) 2026 Davide Pica
+# This file is distributed under the same license as the Symbinux package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Symbinux 0.4.0\n"
+"Report-Msgid-Bugs-To: https://github.com/davidebr90/symbinux/issues\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Identify"
+msgstr "Identyfikuj"
+
+msgid "Read model, IMEI and firmware"
+msgstr "Odczytaj model, IMEI i firmware"
+
+msgid "Phonebook"
+msgstr "Książka telefoniczna"
+
+msgid "Import / export contacts"
+msgstr "Importuj / eksportuj kontakty"
+
+msgid "SMS"
+msgstr "SMS"
+
+msgid "Read and send messages"
+msgstr "Odczytuj i wysyłaj wiadomości"
+
+msgid "Netmonitor"
+msgstr "Netmonitor"
+
+msgid "Network diagnostics"
+msgstr "Diagnostyka sieci"
+
+msgid "Advanced"
+msgstr "Zaawansowane"
+
+msgid "Raw USB/Bluetooth device list"
+msgstr "Surowa lista urządzeń USB/Bluetooth"
+
+msgid "Rescan the selected channel"
+msgstr "Ponownie skanuj wybrany kanał"
+
+msgid "Automatic"
+msgstr "Automatyczny"
+
+msgid "Light"
+msgstr "Jasny"
+
+msgid "Dark"
+msgstr "Ciemny"
+
+msgid "Appearance"
+msgstr "Wygląd"
+
+msgid "Language"
+msgstr "Język"
+
+msgid "About Symbinux"
+msgstr "O programie Symbinux"
+
+msgid "Connect over a serial cable (/dev/ttyUSB*) to read phone identity."
+msgstr "Połącz się przez kabel szeregowy (/dev/ttyUSB*), aby odczytać dane telefonu."
+
+msgid "This function is not wired up yet on this channel."
+msgstr "Ta funkcja nie jest jeszcze dostępna dla tego kanału."
+
+msgid "Scanning Bluetooth…"
+msgstr "Skanowanie Bluetooth…"
+
+msgid "No Bluetooth devices found"
+msgstr "Nie znaleziono urządzeń Bluetooth"
+
+msgid "Make sure Bluetooth is on and nearby devices are discoverable."
+msgstr "Upewnij się, że Bluetooth jest włączony, a pobliskie urządzenia są widoczne."
+
+msgid "Scanning Wi-Fi…"
+msgstr "Skanowanie Wi-Fi…"
+
+msgid "No Wi-Fi networks found"
+msgstr "Nie znaleziono sieci Wi-Fi"
+
+msgid "No wireless networks are in range."
+msgstr "Brak sieci bezprzewodowych w zasięgu."
+
+msgid "Detecting devices…"
+msgstr "Wykrywanie urządzeń…"
+
+msgid "Core not available"
+msgstr "Rdzeń niedostępny"
+
+msgid "No phone or cable detected"
+msgstr "Nie wykryto telefonu ani kabla"
+
+msgid "Connect a Nokia phone via a DKU-2/CA-42 cable, then press the refresh button. Use Advanced to inspect every USB device."
+msgstr "Podłącz telefon Nokia za pomocą kabla DKU-2/CA-42, a następnie naciśnij przycisk odświeżania. Użyj opcji Zaawansowane, aby sprawdzić każde urządzenie USB."
+
+msgid "paired"
+msgstr "sparowano"
+
+msgid "Scanning USB…"
+msgstr "Skanowanie USB…"
+
+msgid "No USB devices visible to the host."
+msgstr "Host nie widzi żadnych urządzeń USB."
+
+msgid "Connected USB devices"
+msgstr "Podłączone urządzenia USB"
+
+msgid "Advanced diagnostics"
+msgstr "Zaawansowana diagnostyka"
+
+msgid "Close"
+msgstr "Zamknij"
+
+msgid "Talk to legacy Nokia phones over FBUS/MBUS on modern Linux."
+msgstr "Komunikuj się ze starszymi telefonami Nokia przez FBUS/MBUS na nowoczesnym Linuksie."
+
+msgid "Identifying…"
+msgstr "Identyfikowanie…"
+
+msgid "Phone identity"
+msgstr "Dane telefonu"
+
+msgid "No reply."
+msgstr "Brak odpowiedzi."
+
+msgid "No serial port found — connect a DKU-2/CA-42 cable and try again."
+msgstr "Nie znaleziono portu szeregowego — podłącz kabel DKU-2/CA-42 i spróbuj ponownie."
+
+msgid "Contacts"
+msgstr "Kontakty"
+
+msgid "Fetching contacts…"
+msgstr "Pobieranie kontaktów…"
+
+msgid "No contacts."
+msgstr "Brak kontaktów."
+
+msgid "Model"
+msgstr "Model"
+
+msgid "Firmware"
+msgstr "Firmware"
+
+msgid "Date"
+msgstr "Data"

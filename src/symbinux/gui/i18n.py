@@ -27,8 +27,12 @@ NATIVE_LANGUAGES: list[tuple[str, str]] = [
     ("es", "Español"),
     ("fr", "Français"),
     ("it", "Italiano"),
+    ("ja", "日本語"),
     ("nl", "Nederlands"),
+    ("pl", "Polski"),
     ("pt", "Português"),
+    ("ru", "Русский"),
+    ("zh_CN", "中文（简体）"),
 ]
 
 _current: gettext.NullTranslations = gettext.NullTranslations()
