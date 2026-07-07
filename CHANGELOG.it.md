@@ -18,6 +18,10 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 - **Identifica nella GUI Rust**: l'azione Identifica ora risolve la porta seriale
   e chiama direttamente `symbinux-transport` / `symbinux-protocol`, poi mostra
   modello, firmware e data decodificati in una card GTK4.
+- **Scansioni wireless nella GUI Rust**: i canali Bluetooth e Wi-Fi ora eseguono
+  scansioni reali `bluetoothctl` / `nmcli` dalla GUI Rust con spinner annullabile
+  ed errori onesti quando lo stack host manca. I contatti PBAP restano
+  esplicitamente pendenti.
 - **Scansioni Bluetooth e Wi-Fi reali**: il canale Bluetooth rileva i dispositivi
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader

@@ -17,6 +17,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **Rust GUI Identify**: the Identify action now resolves the serial port and
   calls `symbinux-transport` / `symbinux-protocol` directly, then shows the
   decoded model, firmware and date in a GTK4 identity card.
+- **Rust GUI wireless scans**: the Bluetooth and Wi-Fi channels now run real
+  `bluetoothctl` / `nmcli` scans from the Rust GUI with a cancellable spinner
+  and honest missing-stack errors. PBAP contacts remains explicitly pending.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error

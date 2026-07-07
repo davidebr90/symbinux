@@ -14,13 +14,14 @@ use gtk4::{
 };
 use std::cell::RefCell;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc, Arc,
 };
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use symbinux_transport::Transport as _;
 
 const APP_ID: &str = "it.davidebr90.Symbinux";
@@ -149,12 +150,32 @@ enum IdentifyMessage {
     Finished(Result<PhoneIdentity, String>),
 }
 
+#[derive(Debug)]
+enum WirelessMessage {
+    Bluetooth(Result<Vec<BluetoothDevice>, String>),
+    Wifi(Result<Vec<WifiNetwork>, String>),
+}
+
 #[derive(Debug, Clone)]
 struct PhoneIdentity {
     port: String,
     model: String,
     firmware: String,
     date: String,
+}
+
+#[derive(Debug, Clone)]
+struct BluetoothDevice {
+    address: String,
+    name: String,
+    paired: bool,
+}
+
+#[derive(Debug, Clone)]
+struct WifiNetwork {
+    ssid: String,
+    signal: String,
+    security: String,
 }
 
 type CancelCallback = Rc<RefCell<Option<Box<dyn Fn()>>>>;
@@ -413,7 +434,8 @@ impl AppUi {
 
         match *self.channel.borrow() {
             Channel::Usb => self.refresh_usb(),
-            channel => self.show_empty(channel.empty_title(), channel.empty_description()),
+            Channel::Bluetooth => self.refresh_bluetooth(),
+            Channel::Wifi => self.refresh_wifi(),
         }
     }
 
@@ -527,6 +549,77 @@ impl AppUi {
         });
     }
 
+    fn refresh_bluetooth(self: &Rc<Self>) {
+        self.refresh_wireless(
+            "Scanning Bluetooth...",
+            |cancel| WirelessMessage::Bluetooth(scan_bluetooth(cancel)),
+            |ui, result| match result {
+                WirelessMessage::Bluetooth(Ok(devices)) => ui.populate_bluetooth(devices),
+                WirelessMessage::Bluetooth(Err(err)) => {
+                    ui.show_empty(Channel::Bluetooth.empty_title(), &err);
+                }
+                WirelessMessage::Wifi(_) => {}
+            },
+        );
+    }
+
+    fn refresh_wifi(self: &Rc<Self>) {
+        self.refresh_wireless(
+            "Scanning Wi-Fi...",
+            |cancel| WirelessMessage::Wifi(scan_wifi(cancel)),
+            |ui, result| match result {
+                WirelessMessage::Wifi(Ok(networks)) => ui.populate_wifi(networks),
+                WirelessMessage::Wifi(Err(err)) => {
+                    ui.show_empty(Channel::Wifi.empty_title(), &err);
+                }
+                WirelessMessage::Bluetooth(_) => {}
+            },
+        );
+    }
+
+    fn refresh_wireless<F, G>(self: &Rc<Self>, label: &str, work: F, done: G)
+    where
+        F: FnOnce(Arc<AtomicBool>) -> WirelessMessage + Send + 'static,
+        G: Fn(&Rc<Self>, WirelessMessage) + 'static,
+    {
+        let cancel = Arc::new(AtomicBool::new(false));
+        *self.current_cancel.borrow_mut() = Some(cancel.clone());
+
+        let cancel_for_button = cancel.clone();
+        self.progress.indeterminate(label, move || {
+            cancel_for_button.store(true, Ordering::SeqCst)
+        });
+
+        let (sender, receiver) = mpsc::channel();
+        let cancel_for_thread = cancel.clone();
+        thread::spawn(move || {
+            let _ = sender.send(work(cancel_for_thread));
+        });
+
+        let ui = Rc::clone(self);
+        glib::timeout_add_local(Duration::from_millis(50), move || {
+            if cancel.load(Ordering::SeqCst) {
+                *ui.current_cancel.borrow_mut() = None;
+                return glib::ControlFlow::Break;
+            }
+
+            match receiver.try_recv() {
+                Ok(result) => {
+                    ui.progress.finish();
+                    *ui.current_cancel.borrow_mut() = None;
+                    done(&ui, result);
+                    glib::ControlFlow::Break
+                }
+                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    ui.progress.finish();
+                    *ui.current_cancel.borrow_mut() = None;
+                    glib::ControlFlow::Break
+                }
+            }
+        });
+    }
+
     fn populate_devices(&self, devices: Vec<UiDevice>) {
         if devices.is_empty() {
             self.show_empty(Channel::Usb.empty_title(), Channel::Usb.empty_description());
@@ -536,6 +629,38 @@ impl AppUi {
         *self.devices.borrow_mut() = devices;
         for device in self.devices.borrow().iter() {
             self.device_list.append(&device_row(device));
+        }
+        self.stack.set_visible_child_name("list");
+    }
+
+    fn populate_bluetooth(self: &Rc<Self>, devices: Vec<BluetoothDevice>) {
+        if devices.is_empty() {
+            self.show_empty(
+                "No Bluetooth devices found",
+                "Make sure Bluetooth is on and nearby devices are discoverable.",
+            );
+            return;
+        }
+
+        self.devices.borrow_mut().clear();
+        for device in devices {
+            self.device_list.append(&bluetooth_row(self, &device));
+        }
+        self.stack.set_visible_child_name("list");
+    }
+
+    fn populate_wifi(&self, networks: Vec<WifiNetwork>) {
+        if networks.is_empty() {
+            self.show_empty(
+                "No Wi-Fi networks found",
+                "No wireless networks are in range.",
+            );
+            return;
+        }
+
+        self.devices.borrow_mut().clear();
+        for network in networks {
+            self.device_list.append(&wifi_row(&network));
         }
         self.stack.set_visible_child_name("list");
     }
@@ -575,6 +700,14 @@ impl AppUi {
             &self.window,
             label,
             "This function is pending in the Rust GUI. The Python GUI remains available until parity is complete.",
+        );
+    }
+
+    fn show_contacts_pending(&self) {
+        show_dialog(
+            &self.window,
+            "Contacts",
+            "Bluetooth PBAP contacts are pending in the Rust GUI. No contact transfer has been started.",
         );
     }
 }
@@ -760,6 +893,84 @@ fn device_row(device: &UiDevice) -> ListBoxRow {
     row
 }
 
+fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
+    let row = ListBoxRow::new();
+    let outer = GtkBox::new(Orientation::Horizontal, 12);
+    outer.set_margin_top(10);
+    outer.set_margin_bottom(10);
+    outer.set_margin_start(12);
+    outer.set_margin_end(12);
+
+    let icon = Image::from_icon_name("bluetooth-symbolic");
+    icon.set_valign(Align::Center);
+    outer.append(&icon);
+
+    let text = GtkBox::new(Orientation::Vertical, 4);
+    text.set_hexpand(true);
+
+    let title_text = if device.name.is_empty() {
+        device.address.as_str()
+    } else {
+        device.name.as_str()
+    };
+    let title = Label::new(Some(title_text));
+    title.set_xalign(0.0);
+    title.add_css_class("heading");
+
+    let mut subtitle = device.address.clone();
+    if device.paired {
+        subtitle.push_str(" - paired");
+    }
+    let subtitle = Label::new(Some(&subtitle));
+    subtitle.set_xalign(0.0);
+    subtitle.add_css_class("dim-label");
+
+    text.append(&title);
+    text.append(&subtitle);
+    outer.append(&text);
+
+    let contacts = Button::with_label("Contacts");
+    contacts.add_css_class("flat");
+    contacts.set_valign(Align::Center);
+    let ui_for_contacts = Rc::clone(ui);
+    contacts.connect_clicked(move |_| ui_for_contacts.show_contacts_pending());
+    outer.append(&contacts);
+
+    row.set_child(Some(&outer));
+    row
+}
+
+fn wifi_row(network: &WifiNetwork) -> ListBoxRow {
+    let row = ListBoxRow::new();
+    let outer = GtkBox::new(Orientation::Horizontal, 12);
+    outer.set_margin_top(10);
+    outer.set_margin_bottom(10);
+    outer.set_margin_start(12);
+    outer.set_margin_end(12);
+
+    let icon = Image::from_icon_name("network-wireless-symbolic");
+    icon.set_valign(Align::Center);
+    outer.append(&icon);
+
+    let text = GtkBox::new(Orientation::Vertical, 4);
+    text.set_hexpand(true);
+
+    let title = Label::new(Some(&network.ssid));
+    title.set_xalign(0.0);
+    title.add_css_class("heading");
+
+    let subtitle = Label::new(Some(&format!("{}% - {}", network.signal, network.security)));
+    subtitle.set_xalign(0.0);
+    subtitle.add_css_class("dim-label");
+
+    text.append(&title);
+    text.append(&subtitle);
+    outer.append(&text);
+
+    row.set_child(Some(&outer));
+    row
+}
+
 fn ui_device(device: symbinux_devices::DetectedDevice) -> UiDevice {
     let handler = symbinux_devices::dispatch(device);
     let identity = handler.identify();
@@ -784,6 +995,202 @@ fn ui_device(device: symbinux_devices::DetectedDevice) -> UiDevice {
         subtitle: format!("{} - {vid_pid} - {caps}", identity.platform.as_str()),
         capabilities,
     }
+}
+
+fn scan_bluetooth(cancel: Arc<AtomicBool>) -> Result<Vec<BluetoothDevice>, String> {
+    require_command(
+        "bluetoothctl",
+        "Bluetooth scan requires bluetoothctl (BlueZ).",
+    )?;
+
+    let show = run_command("bluetoothctl", &["show"], Duration::from_secs(6), &cancel)?;
+    if show.contains("No default controller") {
+        return Err("No Bluetooth adapter available.".to_string());
+    }
+
+    let _ = run_command(
+        "bluetoothctl",
+        &["--timeout", "8", "scan", "on"],
+        Duration::from_secs(13),
+        &cancel,
+    )?;
+    let devices_out = run_command(
+        "bluetoothctl",
+        &["devices"],
+        Duration::from_secs(6),
+        &cancel,
+    )?;
+    let paired_out = run_command(
+        "bluetoothctl",
+        &["paired-devices"],
+        Duration::from_secs(6),
+        &cancel,
+    )?;
+
+    let paired = paired_out
+        .lines()
+        .filter_map(|line| line.strip_prefix("Device "))
+        .filter_map(|tail| tail.split_whitespace().next())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    let mut devices = Vec::new();
+    for line in devices_out.lines() {
+        let Some(tail) = line.strip_prefix("Device ") else {
+            continue;
+        };
+        let mut parts = tail.splitn(2, char::is_whitespace);
+        let Some(address) = parts.next() else {
+            continue;
+        };
+        let name = parts.next().unwrap_or("").trim().to_string();
+        devices.push(BluetoothDevice {
+            address: address.to_string(),
+            name,
+            paired: paired.iter().any(|item| item == address),
+        });
+    }
+    Ok(devices)
+}
+
+fn scan_wifi(cancel: Arc<AtomicBool>) -> Result<Vec<WifiNetwork>, String> {
+    require_command("nmcli", "Wi-Fi scan requires nmcli (NetworkManager).")?;
+    let output = run_command(
+        "nmcli",
+        &[
+            "-t",
+            "-f",
+            "SSID,SIGNAL,SECURITY",
+            "device",
+            "wifi",
+            "list",
+            "--rescan",
+            "yes",
+        ],
+        Duration::from_secs(20),
+        &cancel,
+    )?;
+
+    let mut networks = Vec::new();
+    let mut seen = Vec::new();
+    for line in output.lines().filter(|line| !line.trim().is_empty()) {
+        let fields = split_nmcli_fields(line);
+        if fields.len() < 3 {
+            continue;
+        }
+        let ssid = if fields[0].is_empty() {
+            "(hidden)".to_string()
+        } else {
+            fields[0].clone()
+        };
+        if seen.iter().any(|item| item == &ssid) {
+            continue;
+        }
+        seen.push(ssid.clone());
+        networks.push(WifiNetwork {
+            ssid,
+            signal: fields[1].clone(),
+            security: if fields[2].is_empty() {
+                "open".to_string()
+            } else {
+                fields[2].clone()
+            },
+        });
+    }
+    Ok(networks)
+}
+
+fn require_command(program: &str, message: &str) -> Result<(), String> {
+    if command_exists(program) {
+        Ok(())
+    } else {
+        Err(message.to_string())
+    }
+}
+
+fn command_exists(program: &str) -> bool {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&paths)
+        .any(|dir| dir.join(program).is_file() || dir.join(format!("{program}.exe")).is_file())
+}
+
+fn run_command(
+    program: &str,
+    args: &[&str],
+    timeout: Duration,
+    cancel: &AtomicBool,
+) -> Result<String, String> {
+    let mut child = Command::new(program)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("Could not start {program}: {err}"))?;
+    let deadline = Instant::now() + timeout;
+
+    loop {
+        if cancel.load(Ordering::SeqCst) {
+            let _ = child.kill();
+            return Err("Operation cancelled.".to_string());
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            return Err(format!("{program} timed out."));
+        }
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                let output = child
+                    .wait_with_output()
+                    .map_err(|err| format!("Could not read {program} output: {err}"))?;
+                if output.status.success() {
+                    return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+                }
+
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let detail = if stderr.trim().is_empty() {
+                    stdout.trim()
+                } else {
+                    stderr.trim()
+                };
+                return Err(if detail.is_empty() {
+                    format!("{program} failed.")
+                } else {
+                    format!("{program} failed: {detail}")
+                });
+            }
+            Ok(None) => thread::sleep(Duration::from_millis(50)),
+            Err(err) => {
+                let _ = child.kill();
+                return Err(format!("Could not wait for {program}: {err}"));
+            }
+        }
+    }
+}
+
+fn split_nmcli_fields(line: &str) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut field = String::new();
+    let mut escaped = false;
+
+    for ch in line.chars() {
+        if escaped {
+            field.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if ch == ':' {
+            fields.push(field);
+            field = String::new();
+        } else {
+            field.push(ch);
+        }
+    }
+
+    fields.push(field);
+    fields
 }
 
 fn show_dialog(parent: &ApplicationWindow, title: &str, body: &str) {
