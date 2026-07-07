@@ -160,9 +160,13 @@ def list_usb_devices(include_all: bool = False) -> list[Device]:
         return []
     devices: list[Device] = []
     for entry in data:
+        # `bus` is a string (Linux bus number like "1", or a platform bus id on
+        # Windows/macOS); zero-pad it lsusb-style only when it is numeric.
+        bus = str(entry.get("bus", ""))
+        bus = bus.zfill(3) if bus.isdigit() else bus
         devices.append(
             Device(
-                bus_addr=f"{entry.get('bus', 0):03d}:{entry.get('address', 0):03d}",
+                bus_addr=f"{bus}:{entry.get('address', 0):03d}",
                 vid_pid=f"{entry.get('vid', '')}:{entry.get('pid', '')}",
                 name=entry.get("name", ""),
                 role=entry.get("role", "other"),

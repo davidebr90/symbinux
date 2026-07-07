@@ -32,7 +32,10 @@ pub enum Role {
 
 #[derive(Debug, Clone)]
 pub struct UsbDeviceInfo {
-    pub bus: u8,
+    /// Bus / host-controller identifier as reported by the OS. On Linux this is
+    /// the integer bus number (e.g. `"1"`); on Windows/macOS it is the platform
+    /// bus id string. Kept as a string so it is meaningful on every OS.
+    pub bus: String,
     pub address: u8,
     pub vendor_id: u16,
     pub product_id: u16,
@@ -87,13 +90,8 @@ pub fn list_usb_devices() -> Result<Vec<UsbDeviceInfo>, nusb::Error> {
     for info in nusb::list_devices().wait()? {
         let vid = info.vendor_id();
 
-        #[cfg(target_os = "linux")]
-        let bus = info.busnum();
-        #[cfg(not(target_os = "linux"))]
-        let bus = 0u8;
-
         out.push(UsbDeviceInfo {
-            bus,
+            bus: info.bus_id().to_string(),
             address: info.device_address(),
             vendor_id: vid,
             product_id: info.product_id(),
@@ -120,7 +118,7 @@ mod tests {
     #[test]
     fn display_name_prefers_strings() {
         let d = UsbDeviceInfo {
-            bus: 1,
+            bus: "1".into(),
             address: 4,
             vendor_id: NOKIA_VID,
             product_id: 0x0400,

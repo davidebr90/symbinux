@@ -331,6 +331,15 @@ fn role_str(role: &Role) -> String {
     }
 }
 
+/// Format a bus id for the BUS:ADDR column: zero-pad it lsusb-style when it is a
+/// plain number (Linux), otherwise show the platform bus id string as-is.
+fn bus_label(bus: &str) -> String {
+    match bus.parse::<u32>() {
+        Ok(n) => format!("{n:03}"),
+        Err(_) => bus.to_string(),
+    }
+}
+
 fn cmd_devices(all: bool, as_json: bool) -> Result<()> {
     let devices = list_usb_devices().context("enumerating USB devices")?;
 
@@ -361,7 +370,7 @@ fn cmd_devices(all: bool, as_json: bool) -> Result<()> {
         }
         println!(
             "{:<10} {:04X}:{:04X}  {:<28} {}",
-            format!("{:03}:{:03}", d.bus, d.address),
+            format!("{}:{:03}", bus_label(&d.bus), d.address),
             d.vendor_id,
             d.product_id,
             truncate(&d.display_name(), 28),
