@@ -4,6 +4,8 @@
 //! binary reaches parity widget by widget. The Rust GUI links the core crates
 //! directly; no command-line bridge is used for USB detection.
 
+mod i18n;
+
 use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
@@ -13,6 +15,7 @@ use gtk4::{
     Picture, ProgressBar, ResponseType, Revealer, RevealerTransitionType, ScrolledWindow,
     SelectionMode, Spinner, Stack, StackTransitionType, ToggleButton,
 };
+use i18n::{Translator, LANGUAGES};
 use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
@@ -56,9 +59,10 @@ impl ThemeMode {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct GuiSettings {
     theme: ThemeMode,
+    language: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,7 +140,7 @@ const FUNCTIONS: &[FunctionSpec] = &[
         action: FunctionAction::Pending,
         label: "Phonebook",
         icon: "contact-new-symbolic",
-        tooltip: "Import or export contacts",
+        tooltip: "Import / export contacts",
         capability: "phonebook",
     },
     FunctionSpec {
@@ -224,7 +228,7 @@ struct ProgressPanel {
 }
 
 impl ProgressPanel {
-    fn new() -> Self {
+    fn new(cancel_label: &str) -> Self {
         let root = Revealer::builder()
             .transition_type(RevealerTransitionType::SlideDown)
             .reveal_child(false)
@@ -248,7 +252,7 @@ impl ProgressPanel {
         bar.set_show_text(true);
         bar.set_valign(Align::Center);
 
-        let cancel_button = Button::with_label("Cancel");
+        let cancel_button = Button::with_label(cancel_label);
         cancel_button.add_css_class("flat");
         cancel_button.set_valign(Align::Center);
 
@@ -344,6 +348,7 @@ struct FunctionButton {
 
 struct AppUi {
     window: ApplicationWindow,
+    i18n: Rc<Translator>,
     progress: ProgressPanel,
     stack: Stack,
     empty_title: Label,
@@ -357,16 +362,16 @@ struct AppUi {
 }
 
 impl AppUi {
-    fn new(app: &Application) -> Rc<Self> {
+    fn new(app: &Application, i18n: Rc<Translator>) -> Rc<Self> {
         install_css();
 
-        let (header, refresh_button) = build_header();
+        let (header, refresh_button) = build_header(&i18n);
         let channel_bar = GtkBox::new(Orientation::Horizontal, 6);
         channel_bar.set_halign(Align::Center);
         channel_bar.set_margin_top(10);
         channel_bar.set_margin_bottom(10);
 
-        let progress = ProgressPanel::new();
+        let progress = ProgressPanel::new(&i18n.tr("Cancel"));
 
         let stack = Stack::builder()
             .vexpand(true)
@@ -403,7 +408,7 @@ impl AppUi {
 
         let mut function_buttons = Vec::new();
         for function in FUNCTIONS {
-            let button = function_button(function);
+            let button = function_button(function, &i18n);
             button.set_sensitive(false);
             actions.insert(&button, -1);
             function_buttons.push(FunctionButton {
@@ -433,6 +438,7 @@ impl AppUi {
 
         let ui = Rc::new(Self {
             window,
+            i18n,
             progress,
             stack,
             empty_title,
@@ -450,9 +456,13 @@ impl AppUi {
         wire_device_selection(&ui);
         wire_function_buttons(&ui);
 
-        ui.show_empty(Channel::Usb.empty_title(), Channel::Usb.empty_description());
+        ui.show_channel_empty(Channel::Usb);
         ui.refresh();
         ui
+    }
+
+    fn tr(&self, message: &str) -> String {
+        self.i18n.tr(message)
     }
 
     fn present(&self) {
@@ -477,9 +487,10 @@ impl AppUi {
         *self.current_cancel.borrow_mut() = Some(cancel.clone());
 
         let cancel_for_button = cancel.clone();
-        self.progress.determinate("Detecting devices...", move || {
-            cancel_for_button.store(true, Ordering::SeqCst)
-        });
+        self.progress
+            .determinate(&self.tr("Detecting devices…"), move || {
+                cancel_for_button.store(true, Ordering::SeqCst)
+            });
 
         let (sender, receiver) = mpsc::channel();
         let progress_sender = sender.clone();
@@ -523,7 +534,10 @@ impl AppUi {
                         *ui.current_cancel.borrow_mut() = None;
                         match result {
                             Ok(devices) => ui.populate_devices(devices),
-                            Err(err) => ui.show_empty("Detection error", &err),
+                            Err(err) => {
+                                let title = ui.tr("Core not available");
+                                ui.show_empty(&title, &err);
+                            }
                         }
                         return glib::ControlFlow::Break;
                     }
@@ -546,7 +560,7 @@ impl AppUi {
 
         let cancel_for_button = cancel.clone();
         self.progress
-            .indeterminate("Identifying phone...", move || {
+            .indeterminate(&self.tr("Identifying…"), move || {
                 cancel_for_button.store(true, Ordering::SeqCst)
             });
 
@@ -567,8 +581,8 @@ impl AppUi {
                     ui.progress.finish();
                     *ui.current_cancel.borrow_mut() = None;
                     match result {
-                        Ok(identity) => show_identity_card(&ui.window, &identity),
-                        Err(err) => show_dialog(&ui.window, "Identify", &err),
+                        Ok(identity) => show_identity_card(&ui.window, &ui.i18n, &identity),
+                        Err(err) => show_dialog(&ui.window, &ui.tr("Identify"), &err),
                     }
                     glib::ControlFlow::Break
                 }
@@ -584,12 +598,13 @@ impl AppUi {
 
     fn refresh_bluetooth(self: &Rc<Self>) {
         self.refresh_wireless(
-            "Scanning Bluetooth...",
+            &self.tr("Scanning Bluetooth…"),
             |cancel| WirelessMessage::Bluetooth(scan_bluetooth(cancel)),
             |ui, result| match result {
                 WirelessMessage::Bluetooth(Ok(devices)) => ui.populate_bluetooth(devices),
                 WirelessMessage::Bluetooth(Err(err)) => {
-                    ui.show_empty(Channel::Bluetooth.empty_title(), &err);
+                    let title = ui.tr(Channel::Bluetooth.empty_title());
+                    ui.show_empty(&title, &err);
                 }
                 WirelessMessage::Wifi(_) => {}
             },
@@ -598,12 +613,13 @@ impl AppUi {
 
     fn refresh_wifi(self: &Rc<Self>) {
         self.refresh_wireless(
-            "Scanning Wi-Fi...",
+            &self.tr("Scanning Wi-Fi…"),
             |cancel| WirelessMessage::Wifi(scan_wifi(cancel)),
             |ui, result| match result {
                 WirelessMessage::Wifi(Ok(networks)) => ui.populate_wifi(networks),
                 WirelessMessage::Wifi(Err(err)) => {
-                    ui.show_empty(Channel::Wifi.empty_title(), &err);
+                    let title = ui.tr(Channel::Wifi.empty_title());
+                    ui.show_empty(&title, &err);
                 }
                 WirelessMessage::Bluetooth(_) => {}
             },
@@ -655,7 +671,7 @@ impl AppUi {
 
     fn populate_devices(&self, devices: Vec<UiDevice>) {
         if devices.is_empty() {
-            self.show_empty(Channel::Usb.empty_title(), Channel::Usb.empty_description());
+            self.show_channel_empty(Channel::Usb);
             return;
         }
 
@@ -669,8 +685,8 @@ impl AppUi {
     fn populate_bluetooth(self: &Rc<Self>, devices: Vec<BluetoothDevice>) {
         if devices.is_empty() {
             self.show_empty(
-                "No Bluetooth devices found",
-                "Make sure Bluetooth is on and nearby devices are discoverable.",
+                &self.tr("No Bluetooth devices found"),
+                &self.tr("Make sure Bluetooth is on and nearby devices are discoverable."),
             );
             return;
         }
@@ -685,8 +701,8 @@ impl AppUi {
     fn populate_wifi(&self, networks: Vec<WifiNetwork>) {
         if networks.is_empty() {
             self.show_empty(
-                "No Wi-Fi networks found",
-                "No wireless networks are in range.",
+                &self.tr("No Wi-Fi networks found"),
+                &self.tr("No wireless networks are in range."),
             );
             return;
         }
@@ -711,6 +727,13 @@ impl AppUi {
         self.stack.set_visible_child_name("empty");
     }
 
+    fn show_channel_empty(&self, channel: Channel) {
+        self.show_empty(
+            &self.tr(channel.empty_title()),
+            &self.tr(channel.empty_description()),
+        );
+    }
+
     fn update_function_sensitivity(&self) {
         let selected = self.selected_capabilities.borrow();
         for function in &self.function_buttons {
@@ -729,20 +752,23 @@ impl AppUi {
     }
 
     fn show_pending(&self, label: &str) {
-        let body = "This function is pending in the Rust GUI. The Python GUI remains available until parity is complete.";
-        show_dialog(&self.window, label, body);
-        send_notification(&self.window, label, body);
+        let title = self.tr(label);
+        let body = self.tr("This function is not wired up yet on this channel.");
+        show_dialog(&self.window, &title, &body);
+        send_notification(&self.window, &title, &body);
     }
 
     fn show_contacts_pending(&self) {
-        let body =
-            "Bluetooth PBAP contacts are pending in the Rust GUI. No contact transfer has been started.";
-        show_dialog(&self.window, "Contacts", body);
-        send_notification(&self.window, "Contacts", body);
+        let title = self.tr("Contacts");
+        let body = self.tr(
+            "Bluetooth PBAP contacts are pending in the Rust GUI. No contact transfer has been started.",
+        );
+        show_dialog(&self.window, &title, &body);
+        send_notification(&self.window, &title, &body);
     }
 }
 
-fn build_header() -> (HeaderBar, Button) {
+fn build_header(i18n: &Translator) -> (HeaderBar, Button) {
     let header = HeaderBar::new();
 
     let wordmark = Label::new(Some("SYMBINUX"));
@@ -757,16 +783,27 @@ fn build_header() -> (HeaderBar, Button) {
 
     let refresh = Button::builder()
         .icon_name("view-refresh-symbolic")
-        .tooltip_text("Rescan the selected channel")
+        .tooltip_text(i18n.tr("Rescan the selected channel"))
         .build();
     header.pack_end(&refresh);
 
     let menu = gio::Menu::new();
     let appearance = gio::Menu::new();
-    appearance.append(Some("Automatic"), Some("app.theme::auto"));
-    appearance.append(Some("Light"), Some("app.theme::light"));
-    appearance.append(Some("Dark"), Some("app.theme::dark"));
-    menu.append_submenu(Some("Appearance"), &appearance);
+    appearance.append(Some(&i18n.tr("Automatic")), Some("app.theme::auto"));
+    appearance.append(Some(&i18n.tr("Light")), Some("app.theme::light"));
+    appearance.append(Some(&i18n.tr("Dark")), Some("app.theme::dark"));
+    menu.append_submenu(Some(&i18n.tr("Appearance")), &appearance);
+
+    let language = gio::Menu::new();
+    for (code, native_label) in LANGUAGES {
+        let label = if *code == "auto" {
+            i18n.tr("Automatic")
+        } else {
+            native_label.to_string()
+        };
+        language.append(Some(&label), Some(&format!("app.language::{code}")));
+    }
+    menu.append_submenu(Some(&i18n.tr("Language")), &language);
 
     let menu_button = gtk4::MenuButton::builder()
         .icon_name("open-menu-symbolic")
@@ -788,13 +825,13 @@ fn build_channel_buttons(container: &GtkBox, ui: &Rc<AppUi>) {
     for spec in CHANNELS {
         let button = ToggleButton::new();
         button.add_css_class("flat");
-        button.set_tooltip_text(Some(spec.label));
+        button.set_tooltip_text(Some(&ui.tr(spec.label)));
 
         let inner = GtkBox::new(Orientation::Horizontal, 8);
         inner.set_margin_start(4);
         inner.set_margin_end(4);
         inner.append(&Image::from_icon_name(spec.icon));
-        inner.append(&Label::new(Some(spec.label)));
+        inner.append(&Label::new(Some(&ui.tr(spec.label))));
         button.set_child(Some(&inner));
 
         if let Some(first_button) = &first {
@@ -890,17 +927,17 @@ fn build_empty_state() -> (GtkBox, Label, Label) {
     (box_, title, description)
 }
 
-fn function_button(function: &FunctionSpec) -> Button {
+fn function_button(function: &FunctionSpec, i18n: &Translator) -> Button {
     let inner = GtkBox::new(Orientation::Horizontal, 8);
     inner.set_margin_top(6);
     inner.set_margin_bottom(6);
     inner.set_margin_start(8);
     inner.set_margin_end(8);
     inner.append(&Image::from_icon_name(function.icon));
-    inner.append(&Label::new(Some(function.label)));
+    inner.append(&Label::new(Some(&i18n.tr(function.label))));
 
     let button = Button::new();
-    button.set_tooltip_text(Some(function.tooltip));
+    button.set_tooltip_text(Some(&i18n.tr(function.tooltip)));
     button.set_child(Some(&inner));
     button
 }
@@ -962,7 +999,7 @@ fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
 
     let mut subtitle = device.address.clone();
     if device.paired {
-        subtitle.push_str(" - paired");
+        subtitle.push_str(&format!(" - {}", ui.tr("paired")));
     }
     let subtitle = Label::new(Some(&subtitle));
     subtitle.set_xalign(0.0);
@@ -972,7 +1009,7 @@ fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
     text.append(&subtitle);
     outer.append(&text);
 
-    let contacts = Button::with_label("Contacts");
+    let contacts = Button::with_label(&ui.tr("Contacts"));
     contacts.add_css_class("flat");
     contacts.set_valign(Align::Center);
     let ui_for_contacts = Rc::clone(ui);
@@ -1260,13 +1297,13 @@ fn send_notification(parent: &ApplicationWindow, title: &str, body: &str) {
     app.send_notification(None, &notification);
 }
 
-fn show_identity_card(parent: &ApplicationWindow, identity: &PhoneIdentity) {
+fn show_identity_card(parent: &ApplicationWindow, i18n: &Translator, identity: &PhoneIdentity) {
     let dialog = Dialog::builder()
         .transient_for(parent)
         .modal(true)
-        .title("Phone identity")
+        .title(i18n.tr("Phone identity"))
         .build();
-    dialog.add_button("Close", ResponseType::Close);
+    dialog.add_button(&i18n.tr("Close"), ResponseType::Close);
 
     let card = GtkBox::new(Orientation::Vertical, 8);
     card.add_css_class("symbinux-card");
@@ -1274,9 +1311,9 @@ fn show_identity_card(parent: &ApplicationWindow, identity: &PhoneIdentity) {
     card.set_margin_bottom(16);
     card.set_margin_start(16);
     card.set_margin_end(16);
-    card.append(&property_row("Model", &identity.model));
-    card.append(&property_row("Firmware", &identity.firmware));
-    card.append(&property_row("Date", &identity.date));
+    card.append(&property_row(&i18n.tr("Model"), &identity.model));
+    card.append(&property_row(&i18n.tr("Firmware"), &identity.firmware));
+    card.append(&property_row(&i18n.tr("Date"), &identity.date));
     card.append(&property_row("Port", &identity.port));
 
     dialog.content_area().append(&card);
@@ -1362,21 +1399,37 @@ fn prefer_dark() -> bool {
 }
 
 fn load_settings() -> GuiSettings {
-    let theme = settings_path()
+    let value = settings_path()
         .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-        .and_then(|value| {
-            value
-                .get("theme")
-                .and_then(serde_json::Value::as_str)
-                .and_then(ThemeMode::parse)
-        })
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok());
+
+    let theme = value
+        .as_ref()
+        .and_then(|value| value.get("theme"))
+        .and_then(serde_json::Value::as_str)
+        .and_then(ThemeMode::parse)
         .unwrap_or(ThemeMode::Auto);
 
-    GuiSettings { theme }
+    let language = value
+        .as_ref()
+        .and_then(|value| value.get("language"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|code| language_setting_exists(code))
+        .unwrap_or("auto")
+        .to_string();
+
+    GuiSettings { theme, language }
 }
 
 fn save_theme(mode: ThemeMode) {
+    save_setting("theme", mode.as_str());
+}
+
+fn save_language(code: &str) {
+    save_setting("language", code);
+}
+
+fn save_setting(key: &str, value: &str) {
     let Some(path) = settings_path() else {
         return;
     };
@@ -1387,8 +1440,8 @@ fn save_theme(mode: ThemeMode) {
         .and_then(|value| value.as_object().cloned())
         .unwrap_or_default();
     object.insert(
-        "theme".to_string(),
-        serde_json::Value::String(mode.as_str().to_string()),
+        key.to_string(),
+        serde_json::Value::String(value.to_string()),
     );
 
     if let Some(parent) = path.parent() {
@@ -1397,6 +1450,10 @@ fn save_theme(mode: ThemeMode) {
     if let Ok(text) = serde_json::to_string_pretty(&object) {
         let _ = fs::write(path, text);
     }
+}
+
+fn language_setting_exists(code: &str) -> bool {
+    LANGUAGES.iter().any(|(candidate, _)| *candidate == code)
 }
 
 fn settings_path() -> Option<PathBuf> {
@@ -1455,6 +1512,40 @@ fn install_theme_action(app: &Application, initial: ThemeMode) {
     app.add_action(&action);
 }
 
+fn install_language_action(app: &Application, initial: &str) {
+    if app.lookup_action("language").is_some() {
+        return;
+    }
+
+    let action = gio::SimpleAction::new_stateful(
+        "language",
+        Some(&String::static_variant_type()),
+        &initial.to_variant(),
+    );
+    let app_weak = app.downgrade();
+    action.connect_activate(move |action, parameter| {
+        let Some(code) = parameter
+            .and_then(|value| value.str())
+            .filter(|code| language_setting_exists(code))
+            .map(|code| code.to_string())
+        else {
+            return;
+        };
+
+        action.set_state(&code.to_variant());
+        save_language(&code);
+
+        let Some(app) = app_weak.upgrade() else {
+            return;
+        };
+        if let Some(window) = app.active_window() {
+            window.close();
+        }
+        present_main_window(&app);
+    });
+    app.add_action(&action);
+}
+
 fn install_css() {
     let provider = CssProvider::new();
     provider.load_from_data(
@@ -1492,7 +1583,14 @@ fn build_ui(app: &Application) {
     let settings = load_settings();
     apply_theme(settings.theme);
     install_theme_action(app, settings.theme);
-    AppUi::new(app).present();
+    install_language_action(app, &settings.language);
+    present_main_window(app);
+}
+
+fn present_main_window(app: &Application) {
+    let settings = load_settings();
+    let translator = Rc::new(Translator::load(&settings.language));
+    AppUi::new(app, translator).present();
 }
 
 fn main() -> glib::ExitCode {

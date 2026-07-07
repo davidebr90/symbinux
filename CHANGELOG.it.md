@@ -27,6 +27,9 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   `~/.config/symbinux/settings.json`.
 - **Notifiche native nella GUI Rust**: le azioni pendenti e gli avvisi sui
   contatti PBAP ora emettono anche notifiche desktop `Gio.Notification`.
+- **i18n nella GUI Rust**: il menu Lingua ora salva la lingua scelta e carica le
+  11 traduzioni `.po` esistenti con un parser pure Rust, ripiegando sull'inglese
+  quando una stringa manca.
 - **Scansioni Bluetooth e Wi-Fi reali**: il canale Bluetooth rileva i dispositivi
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader

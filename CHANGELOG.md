@@ -25,6 +25,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `~/.config/symbinux/settings.json`.
 - **Rust GUI native notifications**: pending actions and PBAP contact notices now
   also emit `Gio.Notification` desktop notifications.
+- **Rust GUI i18n**: the language menu now persists the selected language and
+  loads the existing 11 `.po` translations with a pure-Rust parser, falling back
+  to English when a string is missing.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error

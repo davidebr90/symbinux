@@ -8,8 +8,8 @@
 > panel, empty state, capability-aware Nokia action buttons, and direct Identify
 > over `symbinux-transport`. Bluetooth and Wi-Fi scans are ported with honest
 > host-tool errors, the theme menu persists to `settings.json`, and native
-> notifications are wired through Gio. Remaining Phase 1 work ports PBAP contacts
-> and i18n. The
+> notifications are wired through Gio. The language menu now loads the existing
+> `.po` files in pure Rust. Remaining Phase 1 work ports PBAP contacts. The
 > **Python GUI stays usable throughout.** Windows/macOS GTK packaging and *signed*
 > binaries remain later decisions.
 
@@ -102,7 +102,7 @@ parity.
 | Phase | Work | Result |
 |---|---|---|
 | **0** | **Spike:** ✅ *Linux confirmed* — a minimal `gtk4-rs` 0.9.7 window builds against GTK 4.22 and links `symbinux-devices` directly (calls `detect_staged` in-process; no subprocess, no libusb). ⏳ *pending:* the Win/macOS GTK-runtime packaging recipe (gvsbuild / homebrew gtk4), which needs those build hosts | de-risk the toolkit |
-| **1** | Port the GUI to `gtk4-rs` on **Linux** at feature parity linking the core directly. 🔨 *in progress:* `symbinux-gui` has the window shell, wordmark/version header, USB/Bluetooth/Wi-Fi selector, theme-aware empty-state logo, real USB detection with progress/cancel, capability-aware Nokia action buttons, a direct Identify card via `symbinux-transport`, Bluetooth/Wi-Fi scans via Linux host tools, persisted theme selection, and Gio notifications. *Remaining:* PBAP contacts, i18n (11 langs) | Rust GUI == current GUI, on Linux |
+| **1** | Port the GUI to `gtk4-rs` on **Linux** at feature parity linking the core directly. 🔨 *in progress:* `symbinux-gui` has the window shell, wordmark/version header, USB/Bluetooth/Wi-Fi selector, theme-aware empty-state logo, real USB detection with progress/cancel, capability-aware Nokia action buttons, a direct Identify card via `symbinux-transport`, Bluetooth/Wi-Fi scans via Linux host tools, persisted theme selection, Gio notifications, and `.po`-based i18n (11 langs). *Remaining:* PBAP contacts | Rust GUI == current GUI, on Linux |
 | **2** | New `symbinux-wireless` crate: BLE scan (`btleplug`) + notifications (`notify-rust`), GUI calls them directly; retire the `bluetoothctl`/`nmcli`/`Gio` shell-outs | wireless in the core, portable |
 | **3** | Cross-platform **build** of the Rust GUI for Windows + macOS (unsigned); verify detection + serial + USB(WinUSB/IOKit) end-to-end | GUI runs on 3 OSes |
 | **4a** | **Classic-BT OBEX/PBAP on Windows** (spike → RFCOMM+OBEX client → PBAP pull) | Nokia contacts over BT on Windows |
