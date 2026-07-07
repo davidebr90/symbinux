@@ -30,6 +30,20 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
+  macos:
+    name: Build & test (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install GTK4
+        run: brew install gtk4 pkgconf
+      - name: Build (workspace, GUI included)
+        run: cargo build --workspace
+      - name: Test
+        run: cargo test --workspace
+
   packaging:
     name: Packaging metadata
     runs-on: ubuntu-latest
