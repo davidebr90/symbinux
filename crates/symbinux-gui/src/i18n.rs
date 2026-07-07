@@ -98,11 +98,25 @@ fn normalize_language(value: &str) -> Option<String> {
 }
 
 fn po_path(code: &str) -> Option<PathBuf> {
+    let file = format!("{code}.po");
+
+    // Installed layout: the executable lives in <root>/bin/ (or <root>/) with
+    // the po folder shipped alongside at <root>/po/.
+    if let Ok(exe) = std::env::current_exe() {
+        for ancestor in exe.ancestors().skip(1).take(3) {
+            let candidate = ancestor.join("po").join(&file);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    // Development layout: the workspace root, two levels above this crate.
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|path| path.parent())
         .map(PathBuf::from)?;
-    Some(root.join("po").join(format!("{code}.po")))
+    Some(root.join("po").join(file))
 }
 
 fn parse_po(text: &str) -> HashMap<String, String> {

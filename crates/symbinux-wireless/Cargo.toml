@@ -1,0 +1,18 @@
+[package]
+name = "symbinux-wireless"
+description = "Cross-platform wireless backends for Symbinux — Bluetooth/Wi-Fi scans, PBAP contacts and desktop notifications behind one portable API"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+notify-rust = "4"
+thiserror.workspace = true
+
+# BLE scanning is only needed where BlueZ tooling is unavailable; on Linux the
+# classic+LE scan goes through bluetoothctl, keeping libdbus out of the build.
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+btleplug = "0.11"
+tokio = { version = "1", features = ["rt", "time"] }

@@ -19,15 +19,15 @@ use i18n::{Translator, LANGUAGES};
 use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc, Arc,
 };
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use symbinux_transport::Transport as _;
+use symbinux_wireless::{BluetoothDevice, WifiNetwork};
 
 const APP_ID: &str = "it.davidebr90.Symbinux";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -204,20 +204,6 @@ struct PhoneIdentity {
     model: String,
     firmware: String,
     date: String,
-}
-
-#[derive(Debug, Clone)]
-struct BluetoothDevice {
-    address: String,
-    name: String,
-    paired: bool,
-}
-
-#[derive(Debug, Clone)]
-struct WifiNetwork {
-    ssid: String,
-    signal: String,
-    security: String,
 }
 
 type CancelCallback = Rc<RefCell<Option<Box<dyn Fn()>>>>;
@@ -605,7 +591,11 @@ impl AppUi {
     fn refresh_bluetooth(self: &Rc<Self>) {
         self.refresh_wireless(
             &self.tr("Scanning Bluetooth…"),
-            |cancel| WirelessMessage::Bluetooth(scan_bluetooth(cancel)),
+            |cancel| {
+                WirelessMessage::Bluetooth(
+                    symbinux_wireless::scan_bluetooth(&cancel).map_err(|err| err.to_string()),
+                )
+            },
             |ui, result| match result {
                 WirelessMessage::Bluetooth(Ok(devices)) => ui.populate_bluetooth(devices),
                 WirelessMessage::Bluetooth(Err(err)) => {
@@ -620,7 +610,11 @@ impl AppUi {
     fn refresh_wifi(self: &Rc<Self>) {
         self.refresh_wireless(
             &self.tr("Scanning Wi-Fi…"),
-            |cancel| WirelessMessage::Wifi(scan_wifi(cancel)),
+            |cancel| {
+                WirelessMessage::Wifi(
+                    symbinux_wireless::scan_wifi(&cancel).map_err(|err| err.to_string()),
+                )
+            },
             |ui, result| match result {
                 WirelessMessage::Wifi(Ok(networks)) => ui.populate_wifi(networks),
                 WirelessMessage::Wifi(Err(err)) => {
@@ -761,7 +755,7 @@ impl AppUi {
         let title = self.tr(label);
         let body = self.tr("This function is not wired up yet on this channel.");
         show_dialog(&self.window, &title, &body);
-        send_notification(&self.window, &title, &body);
+        send_notification(&title, &body);
     }
 
     fn pull_bt_contacts(self: &Rc<Self>, address: String) {
@@ -779,7 +773,8 @@ impl AppUi {
         let (sender, receiver) = mpsc::channel();
         let cancel_for_thread = cancel.clone();
         thread::spawn(move || {
-            let result = pull_contacts_pbap(&address, cancel_for_thread);
+            let result = symbinux_wireless::pull_contacts_pbap(&address, &cancel_for_thread)
+                .map_err(|err| err.to_string());
             let _ = sender.send(ContactsMessage::Finished(result));
         });
 
@@ -1142,365 +1137,6 @@ fn ui_device(device: symbinux_devices::DetectedDevice) -> UiDevice {
     }
 }
 
-fn scan_bluetooth(cancel: Arc<AtomicBool>) -> Result<Vec<BluetoothDevice>, String> {
-    require_command(
-        "bluetoothctl",
-        "Bluetooth scan requires bluetoothctl (BlueZ).",
-    )?;
-
-    let show = run_command("bluetoothctl", &["show"], Duration::from_secs(6), &cancel)?;
-    if show.contains("No default controller") {
-        return Err("No Bluetooth adapter available.".to_string());
-    }
-
-    let _ = run_command(
-        "bluetoothctl",
-        &["--timeout", "8", "scan", "on"],
-        Duration::from_secs(13),
-        &cancel,
-    )?;
-    let devices_out = run_command(
-        "bluetoothctl",
-        &["devices"],
-        Duration::from_secs(6),
-        &cancel,
-    )?;
-    let paired_out = run_command(
-        "bluetoothctl",
-        &["paired-devices"],
-        Duration::from_secs(6),
-        &cancel,
-    )?;
-
-    let paired = paired_out
-        .lines()
-        .filter_map(|line| line.strip_prefix("Device "))
-        .filter_map(|tail| tail.split_whitespace().next())
-        .map(str::to_string)
-        .collect::<Vec<_>>();
-
-    let mut devices = Vec::new();
-    for line in devices_out.lines() {
-        let Some(tail) = line.strip_prefix("Device ") else {
-            continue;
-        };
-        let mut parts = tail.splitn(2, char::is_whitespace);
-        let Some(address) = parts.next() else {
-            continue;
-        };
-        let name = parts.next().unwrap_or("").trim().to_string();
-        devices.push(BluetoothDevice {
-            address: address.to_string(),
-            name,
-            paired: paired.iter().any(|item| item == address),
-        });
-    }
-    Ok(devices)
-}
-
-fn scan_wifi(cancel: Arc<AtomicBool>) -> Result<Vec<WifiNetwork>, String> {
-    require_command("nmcli", "Wi-Fi scan requires nmcli (NetworkManager).")?;
-    let output = run_command(
-        "nmcli",
-        &[
-            "-t",
-            "-f",
-            "SSID,SIGNAL,SECURITY",
-            "device",
-            "wifi",
-            "list",
-            "--rescan",
-            "yes",
-        ],
-        Duration::from_secs(20),
-        &cancel,
-    )?;
-
-    let mut networks = Vec::new();
-    let mut seen = Vec::new();
-    for line in output.lines().filter(|line| !line.trim().is_empty()) {
-        let fields = split_nmcli_fields(line);
-        if fields.len() < 3 {
-            continue;
-        }
-        let ssid = if fields[0].is_empty() {
-            "(hidden)".to_string()
-        } else {
-            fields[0].clone()
-        };
-        if seen.iter().any(|item| item == &ssid) {
-            continue;
-        }
-        seen.push(ssid.clone());
-        networks.push(WifiNetwork {
-            ssid,
-            signal: fields[1].clone(),
-            security: if fields[2].is_empty() {
-                "open".to_string()
-            } else {
-                fields[2].clone()
-            },
-        });
-    }
-    Ok(networks)
-}
-
-fn pull_contacts_pbap(address: &str, cancel: Arc<AtomicBool>) -> Result<String, String> {
-    require_command(
-        "bluetoothctl",
-        "Bluetooth contacts require bluetoothctl (BlueZ).",
-    )?;
-    require_command(
-        "busctl",
-        "Bluetooth contacts require busctl and bluez-obex.",
-    )?;
-
-    let _ = run_command(
-        "bluetoothctl",
-        &["pair", address],
-        Duration::from_secs(30),
-        &cancel,
-    );
-    let _ = run_command(
-        "bluetoothctl",
-        &["connect", address],
-        Duration::from_secs(15),
-        &cancel,
-    );
-
-    let session_out = run_command(
-        "busctl",
-        &[
-            "--user",
-            "call",
-            "org.bluez.obex",
-            "/org/bluez/obex",
-            "org.bluez.obex.Client1",
-            "CreateSession",
-            "sa{sv}",
-            address,
-            "1",
-            "Target",
-            "s",
-            "pbap",
-        ],
-        Duration::from_secs(20),
-        &cancel,
-    )?;
-    let session = first_dbus_path(&session_out)
-        .ok_or_else(|| "PBAP session was not created by obexd.".to_string())?;
-
-    let result = pull_contacts_from_session(&session, address, &cancel);
-    let _ = run_command(
-        "busctl",
-        &[
-            "--user",
-            "call",
-            "org.bluez.obex",
-            "/org/bluez/obex",
-            "org.bluez.obex.Client1",
-            "RemoveSession",
-            "o",
-            &session,
-        ],
-        Duration::from_secs(5),
-        &cancel,
-    );
-    result
-}
-
-fn pull_contacts_from_session(
-    session: &str,
-    address: &str,
-    cancel: &AtomicBool,
-) -> Result<String, String> {
-    let _ = run_command(
-        "busctl",
-        &[
-            "--user",
-            "call",
-            "org.bluez.obex",
-            session,
-            "org.bluez.obex.PhonebookAccess1",
-            "Select",
-            "ss",
-            "int",
-            "pb",
-        ],
-        Duration::from_secs(10),
-        cancel,
-    )?;
-
-    let target = pbap_target_path(address);
-    let target_str = target
-        .to_str()
-        .ok_or_else(|| "Could not create a UTF-8 target path for contacts.".to_string())?;
-    let transfer_out = run_command(
-        "busctl",
-        &[
-            "--user",
-            "call",
-            "org.bluez.obex",
-            session,
-            "org.bluez.obex.PhonebookAccess1",
-            "PullAll",
-            "sa{sv}",
-            target_str,
-            "0",
-        ],
-        Duration::from_secs(10),
-        cancel,
-    )?;
-    let transfer = first_dbus_path(&transfer_out)
-        .ok_or_else(|| "PBAP transfer was not created by obexd.".to_string())?;
-
-    let deadline = Instant::now() + Duration::from_secs(45);
-    loop {
-        if cancel.load(Ordering::SeqCst) {
-            return Err("Operation cancelled.".to_string());
-        }
-        if Instant::now() >= deadline {
-            return Err("Bluetooth contact transfer timed out.".to_string());
-        }
-
-        let status = run_command(
-            "busctl",
-            &[
-                "--user",
-                "get-property",
-                "org.bluez.obex",
-                &transfer,
-                "org.bluez.obex.Transfer1",
-                "Status",
-            ],
-            Duration::from_secs(3),
-            cancel,
-        )?;
-        if status.contains("\"complete\"") {
-            let text = fs::read_to_string(&target)
-                .map_err(|err| format!("Could not read PBAP contacts: {err}"))?;
-            let _ = fs::remove_file(&target);
-            return Ok(text);
-        }
-        if status.contains("\"error\"") {
-            let _ = fs::remove_file(&target);
-            return Err("Bluetooth contact transfer failed.".to_string());
-        }
-        thread::sleep(Duration::from_millis(200));
-    }
-}
-
-fn pbap_target_path(address: &str) -> PathBuf {
-    let clean_address = address
-        .chars()
-        .map(|ch| if ch.is_ascii_hexdigit() { ch } else { '_' })
-        .collect::<String>();
-    std::env::temp_dir().join(format!(
-        "symbinux-pbap-{clean_address}-{}.vcf",
-        std::process::id()
-    ))
-}
-
-fn first_dbus_path(output: &str) -> Option<String> {
-    output.split_whitespace().find_map(|part| {
-        let value = part.trim_matches('"');
-        value.starts_with('/').then(|| value.to_string())
-    })
-}
-
-fn require_command(program: &str, message: &str) -> Result<(), String> {
-    if command_exists(program) {
-        Ok(())
-    } else {
-        Err(message.to_string())
-    }
-}
-
-fn command_exists(program: &str) -> bool {
-    let Some(paths) = std::env::var_os("PATH") else {
-        return false;
-    };
-    std::env::split_paths(&paths)
-        .any(|dir| dir.join(program).is_file() || dir.join(format!("{program}.exe")).is_file())
-}
-
-fn run_command(
-    program: &str,
-    args: &[&str],
-    timeout: Duration,
-    cancel: &AtomicBool,
-) -> Result<String, String> {
-    let mut child = Command::new(program)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| format!("Could not start {program}: {err}"))?;
-    let deadline = Instant::now() + timeout;
-
-    loop {
-        if cancel.load(Ordering::SeqCst) {
-            let _ = child.kill();
-            return Err("Operation cancelled.".to_string());
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            return Err(format!("{program} timed out."));
-        }
-        match child.try_wait() {
-            Ok(Some(_)) => {
-                let output = child
-                    .wait_with_output()
-                    .map_err(|err| format!("Could not read {program} output: {err}"))?;
-                if output.status.success() {
-                    return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
-                }
-
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let detail = if stderr.trim().is_empty() {
-                    stdout.trim()
-                } else {
-                    stderr.trim()
-                };
-                return Err(if detail.is_empty() {
-                    format!("{program} failed.")
-                } else {
-                    format!("{program} failed: {detail}")
-                });
-            }
-            Ok(None) => thread::sleep(Duration::from_millis(50)),
-            Err(err) => {
-                let _ = child.kill();
-                return Err(format!("Could not wait for {program}: {err}"));
-            }
-        }
-    }
-}
-
-fn split_nmcli_fields(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut field = String::new();
-    let mut escaped = false;
-
-    for ch in line.chars() {
-        if escaped {
-            field.push(ch);
-            escaped = false;
-        } else if ch == '\\' {
-            escaped = true;
-        } else if ch == ':' {
-            fields.push(field);
-            field = String::new();
-        } else {
-            field.push(ch);
-        }
-    }
-
-    fields.push(field);
-    fields
-}
-
 fn show_dialog(parent: &ApplicationWindow, title: &str, body: &str) {
     let dialog = MessageDialog::builder()
         .transient_for(parent)
@@ -1514,15 +1150,8 @@ fn show_dialog(parent: &ApplicationWindow, title: &str, body: &str) {
     dialog.present();
 }
 
-fn send_notification(parent: &ApplicationWindow, title: &str, body: &str) {
-    let Some(app) = parent.application() else {
-        return;
-    };
-
-    let notification = gio::Notification::new(title);
-    notification.set_body(Some(body));
-    notification.set_priority(gio::NotificationPriority::Normal);
-    app.send_notification(None, &notification);
+fn send_notification(title: &str, body: &str) {
+    symbinux_wireless::notify(title, body);
 }
 
 fn show_identity_card(parent: &ApplicationWindow, i18n: &Translator, identity: &PhoneIdentity) {
@@ -1612,12 +1241,22 @@ fn logo_path(dark: bool) -> Option<PathBuf> {
         "symbinux_logo_transparent_light.png"
     };
 
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let mut candidates = Vec::new();
+    // Installed layout: the executable lives in <root>/bin/ (or <root>/) with
+    // the assets folder shipped alongside at <root>/assets/.
+    if let Ok(exe) = std::env::current_exe() {
+        for ancestor in exe.ancestors().skip(1).take(3) {
+            candidates.push(ancestor.join("assets").join("logo").join(name));
+        }
+    }
+    // Development layout: the workspace root, two levels above this crate.
+    if let Some(root) = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|path| path.parent())
-        .map(PathBuf::from)?;
-    let path = root.join("assets").join("logo").join(name);
-    path.exists().then_some(path)
+    {
+        candidates.push(root.join("assets").join("logo").join(name));
+    }
+    candidates.into_iter().find(|path| path.exists())
 }
 
 fn prefer_dark() -> bool {
@@ -1900,6 +1539,13 @@ fn present_main_window(app: &Application) {
 }
 
 fn main() -> glib::ExitCode {
+    // The default GL renderer does not realise the window on Windows with the
+    // MSYS2 GTK runtime we ship; cairo renders reliably there.
+    #[cfg(windows)]
+    if std::env::var_os("GSK_RENDERER").is_none() {
+        std::env::set_var("GSK_RENDERER", "cairo");
+    }
+
     let app = Application::builder().application_id(APP_ID).build();
     app.connect_activate(build_ui);
     app.run()

@@ -4,6 +4,7 @@ members = [
     "crates/symbinux-protocol",
     "crates/symbinux-transport",
     "crates/symbinux-devices",
+    "crates/symbinux-wireless",
     "crates/symbinux-cli",
     "crates/symbinux-gui",
 ]
@@ -14,6 +15,7 @@ default-members = [
     "crates/symbinux-protocol",
     "crates/symbinux-transport",
     "crates/symbinux-devices",
+    "crates/symbinux-wireless",
     "crates/symbinux-cli",
 ]
 
@@ -29,5 +31,6 @@ authors = ["Davide Pica"]
 symbinux-protocol = { path = "crates/symbinux-protocol" }
 symbinux-transport = { path = "crates/symbinux-transport" }
 symbinux-devices = { path = "crates/symbinux-devices" }
+symbinux-wireless = { path = "crates/symbinux-wireless" }
 thiserror = "1"
 log = "0.4"
