@@ -10,6 +10,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Rust GTK4 GUI Phase 1 shell**: `symbinux-gui` now mirrors the Python GUI's
+  main window frame with the wordmark/version header, USB/Bluetooth/Wi-Fi
+  channel selector, theme-aware empty-state logo, real USB detection progress
+  with Cancel, and capability-aware Nokia action buttons.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error
