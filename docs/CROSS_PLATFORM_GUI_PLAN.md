@@ -11,8 +11,10 @@
 > notifications are wired through Gio. The language menu now loads the existing
 > `.po` files in pure Rust. PBAP contacts are wired through BlueZ/obexd and need
 > real phone hardware validation before the Python GUI can be retired. The
-> **Python GUI stays usable throughout.** Windows/macOS GTK packaging and *signed*
-> binaries remain later decisions.
+> **Python GUI stays usable throughout.** The Rust GUI now also **builds and runs
+> natively on Windows** (gtk4-rs against MSYS2 GTK4, `x86_64-pc-windows-gnu`,
+> `GSK_RENDERER=cairo`); the macOS build and *signed* binaries remain later
+> decisions.
 
 ## 1. Goal & mission constraint
 
@@ -102,10 +104,10 @@ parity.
 
 | Phase | Work | Result |
 |---|---|---|
-| **0** | **Spike:** ✅ *Linux confirmed* — a minimal `gtk4-rs` 0.9.7 window builds against GTK 4.22 and links `symbinux-devices` directly (calls `detect_staged` in-process; no subprocess, no libusb). ⏳ *pending:* the Win/macOS GTK-runtime packaging recipe (gvsbuild / homebrew gtk4), which needs those build hosts | de-risk the toolkit |
+| **0** | **Spike:** ✅ *Linux + Windows confirmed* — `gtk4-rs` links `symbinux-devices` directly (no subprocess, no libusb). Windows GTK4 runtime recipe: **MSYS2 mingw64 GTK4 + the `x86_64-pc-windows-gnu` target** (matches rustup gnu/MSVCRT). ⏳ *pending:* the macOS recipe (homebrew gtk4). | de-risk the toolkit |
 | **1** | Port the GUI to `gtk4-rs` on **Linux** at feature parity linking the core directly. ✅ *feature port complete:* `symbinux-gui` has the window shell, wordmark/version header, USB/Bluetooth/Wi-Fi selector, theme-aware empty-state logo, real USB detection with progress/cancel, capability-aware Nokia action buttons, a direct Identify card via `symbinux-transport`, Bluetooth/Wi-Fi scans via Linux host tools, PBAP contacts through BlueZ/obexd, persisted theme selection, Gio notifications, and `.po`-based i18n (11 langs). *Pending:* PBAP hardware validation with a real phone | Rust GUI == current GUI, on Linux once PBAP is hardware-validated |
 | **2** | New `symbinux-wireless` crate: BLE scan (`btleplug`) + notifications (`notify-rust`), GUI calls them directly; retire the `bluetoothctl`/`nmcli`/`Gio` shell-outs | wireless in the core, portable |
-| **3** | Cross-platform **build** of the Rust GUI for Windows + macOS (unsigned); verify detection + serial + USB(WinUSB/IOKit) end-to-end | GUI runs on 3 OSes |
+| **3** | Cross-platform **build** of the Rust GUI for Windows + macOS (unsigned). ✅ *Windows done:* built for `x86_64-pc-windows-gnu` against MSYS2 mingw64 GTK4 and **run natively** — single integrated titlebar, theme-aware (follows the OS light/dark), honest empty state, `nusb` USB enumeration working. Requires `GSK_RENDERER=cairo` (the default GL renderer did not realise the window in this environment — a Windows packaging note). ⏳ *macOS pending* (homebrew gtk4). | GUI runs on 3 OSes |
 | **4a** | **Classic-BT OBEX/PBAP on Windows** (spike → RFCOMM+OBEX client → PBAP pull) | Nokia contacts over BT on Windows |
 | **4b** | **Classic-BT OBEX/PBAP on macOS** (spike → IOBluetooth binding → PBAP pull) | Nokia contacts over BT on macOS |
 | **5** | Retire the Python GUI once parity is proven; update docs/packaging | single Rust GUI |
