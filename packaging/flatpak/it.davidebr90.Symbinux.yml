@@ -15,6 +15,7 @@ finish-args:
   - --system-talk-name=org.bluez # Bluetooth pairing/scan (app-driven)
   - --system-talk-name=org.freedesktop.NetworkManager # Wi-Fi scan (nmcli)
   - --talk-name=org.bluez.obex # PBAP contacts over the session bus
+  - --talk-name=org.freedesktop.Notifications # desktop notifications (notify-rust)
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin

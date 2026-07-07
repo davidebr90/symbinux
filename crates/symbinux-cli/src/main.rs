@@ -150,7 +150,7 @@ fn parse_hex_bytes(s: &str) -> Result<Vec<u8>> {
 /// Parse hex bytes, tolerating spaces and separators (e.g. "1E0C" or "1E 0C").
 fn parse_hex_flexible(s: &str) -> Result<Vec<u8>> {
     let compact: String = s.chars().filter(|c| c.is_ascii_hexdigit()).collect();
-    if compact.len() % 2 != 0 {
+    if !compact.len().is_multiple_of(2) {
         bail!("hex string has an odd number of digits");
     }
     (0..compact.len())
