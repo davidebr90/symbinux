@@ -1,9 +1,12 @@
 # Cross-platform desktop plan: gtk4-rs GUI + native backends
 
-> Status: **plan / design document — not started.** This is the project's
-> largest single track; execution is a sequence of **dedicated sessions** (§6),
-> with the **Linux GUI kept working throughout** — no big-bang rewrite. Publishing
-> signed Windows/macOS binaries is a **later** decision (out of scope here).
+> Status: **Phase 0 spike started — the Linux path is confirmed.** A minimal
+> `gtk4-rs` (0.9.7, GTK 4.22) window builds and links `symbinux-devices` directly
+> (no subprocess, no libusb); see §6. The rest is a sequence of **dedicated
+> sessions** (§6) with the **Linux GUI kept working throughout** — no big-bang
+> rewrite. Remaining Phase 0 work (the Windows/macOS GTK-runtime packaging recipe)
+> needs those build hosts. Publishing *signed* Win/macOS binaries is a **later**
+> decision (out of scope here).
 
 ## 1. Goal & mission constraint
 
@@ -93,7 +96,7 @@ parity.
 
 | Phase | Work | Result |
 |---|---|---|
-| **0** | **Spike:** stand up a minimal `gtk4-rs` window linking `symbinux-devices`; confirm the `gtk4` build on Linux and the packaging path on Windows/macOS (GTK runtime bundling via gvsbuild / homebrew gtk4) | de-risk the toolkit |
+| **0** | **Spike:** ✅ *Linux confirmed* — a minimal `gtk4-rs` 0.9.7 window builds against GTK 4.22 and links `symbinux-devices` directly (calls `detect_staged` in-process; no subprocess, no libusb). ⏳ *pending:* the Win/macOS GTK-runtime packaging recipe (gvsbuild / homebrew gtk4), which needs those build hosts | de-risk the toolkit |
 | **1** | Port the GUI to `gtk4-rs` on **Linux** at feature parity (channel selector, detection, identify card, progress/cancel, i18n, theme) linking the core directly | Rust GUI == current GUI, on Linux |
 | **2** | New `symbinux-wireless` crate: BLE scan (`btleplug`) + notifications (`notify-rust`), GUI calls them directly; retire the `bluetoothctl`/`nmcli`/`Gio` shell-outs | wireless in the core, portable |
 | **3** | Cross-platform **build** of the Rust GUI for Windows + macOS (unsigned); verify detection + serial + USB(WinUSB/IOKit) end-to-end | GUI runs on 3 OSes |
