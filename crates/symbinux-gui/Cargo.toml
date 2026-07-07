@@ -8,6 +8,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+serde_json = "1"
 symbinux-devices.workspace = true
 symbinux-protocol.workspace = true
 symbinux-transport.workspace = true

@@ -22,6 +22,9 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   scansioni reali `bluetoothctl` / `nmcli` dalla GUI Rust con spinner annullabile
   ed errori onesti quando lo stack host manca. I contatti PBAP restano
   esplicitamente pendenti.
+- **Menu tema nella GUI Rust**: il menu Aspetto applica la selezione
+  auto/chiaro/scuro tramite impostazioni GTK e salva la scelta in
+  `~/.config/symbinux/settings.json`.
 - **Scansioni Bluetooth e Wi-Fi reali**: il canale Bluetooth rileva i dispositivi
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader

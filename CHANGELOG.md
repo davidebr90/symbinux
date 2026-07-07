@@ -20,6 +20,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **Rust GUI wireless scans**: the Bluetooth and Wi-Fi channels now run real
   `bluetoothctl` / `nmcli` scans from the Rust GUI with a cancellable spinner
   and honest missing-stack errors. PBAP contacts remains explicitly pending.
+- **Rust GUI theme menu**: the Appearance menu applies auto/light/dark theme
+  selection through GTK settings and persists the choice in
+  `~/.config/symbinux/settings.json`.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error

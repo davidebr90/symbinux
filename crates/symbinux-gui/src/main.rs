@@ -4,6 +4,7 @@
 //! binary reaches parity widget by widget. The Rust GUI links the core crates
 //! directly; no command-line bridge is used for USB detection.
 
+use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
@@ -13,6 +14,7 @@ use gtk4::{
     SelectionMode, Spinner, Stack, StackTransitionType, ToggleButton,
 };
 use std::cell::RefCell;
+use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::rc::Rc;
@@ -27,6 +29,37 @@ use symbinux_transport::Transport as _;
 const APP_ID: &str = "it.davidebr90.Symbinux";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SERIAL_VIDS: &[u16] = &[0x0421, 0x067b, 0x10c4, 0x0403, 0x1a86];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThemeMode {
+    Auto,
+    Light,
+    Dark,
+}
+
+impl ThemeMode {
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "auto" => Some(Self::Auto),
+            "light" => Some(Self::Light),
+            "dark" => Some(Self::Dark),
+            _ => None,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GuiSettings {
+    theme: ThemeMode,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Channel {
@@ -731,6 +764,19 @@ fn build_header() -> (HeaderBar, Button) {
         .build();
     header.pack_end(&refresh);
 
+    let menu = gio::Menu::new();
+    let appearance = gio::Menu::new();
+    appearance.append(Some("Automatic"), Some("app.theme::auto"));
+    appearance.append(Some("Light"), Some("app.theme::light"));
+    appearance.append(Some("Dark"), Some("app.theme::dark"));
+    menu.append_submenu(Some("Appearance"), &appearance);
+
+    let menu_button = gtk4::MenuButton::builder()
+        .icon_name("open-menu-symbolic")
+        .menu_model(&menu)
+        .build();
+    header.pack_end(&menu_button);
+
     (header, refresh)
 }
 
@@ -1307,6 +1353,100 @@ fn prefer_dark() -> bool {
         .unwrap_or(false)
 }
 
+fn load_settings() -> GuiSettings {
+    let theme = settings_path()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|value| {
+            value
+                .get("theme")
+                .and_then(serde_json::Value::as_str)
+                .and_then(ThemeMode::parse)
+        })
+        .unwrap_or(ThemeMode::Auto);
+
+    GuiSettings { theme }
+}
+
+fn save_theme(mode: ThemeMode) {
+    let Some(path) = settings_path() else {
+        return;
+    };
+
+    let mut object = fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|value| value.as_object().cloned())
+        .unwrap_or_default();
+    object.insert(
+        "theme".to_string(),
+        serde_json::Value::String(mode.as_str().to_string()),
+    );
+
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(text) = serde_json::to_string_pretty(&object) {
+        let _ = fs::write(path, text);
+    }
+}
+
+fn settings_path() -> Option<PathBuf> {
+    if let Some(config) = std::env::var_os("XDG_CONFIG_HOME") {
+        let path = PathBuf::from(config);
+        if !path.as_os_str().is_empty() {
+            return Some(path.join("symbinux").join("settings.json"));
+        }
+    }
+
+    if cfg!(windows) {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            return Some(
+                PathBuf::from(appdata)
+                    .join("symbinux")
+                    .join("settings.json"),
+            );
+        }
+    }
+
+    std::env::var_os("HOME").map(|home| {
+        PathBuf::from(home)
+            .join(".config")
+            .join("symbinux")
+            .join("settings.json")
+    })
+}
+
+fn apply_theme(mode: ThemeMode) {
+    if let Some(settings) = gtk4::Settings::default() {
+        settings.set_property("gtk-application-prefer-dark-theme", mode == ThemeMode::Dark);
+    }
+}
+
+fn install_theme_action(app: &Application, initial: ThemeMode) {
+    if app.lookup_action("theme").is_some() {
+        return;
+    }
+
+    let action = gio::SimpleAction::new_stateful(
+        "theme",
+        Some(&String::static_variant_type()),
+        &initial.as_str().to_variant(),
+    );
+    action.connect_activate(|action, parameter| {
+        let Some(mode) = parameter
+            .and_then(|value| value.str())
+            .and_then(ThemeMode::parse)
+        else {
+            return;
+        };
+        action.set_state(&mode.as_str().to_variant());
+        apply_theme(mode);
+        save_theme(mode);
+    });
+    app.add_action(&action);
+}
+
 fn install_css() {
     let provider = CssProvider::new();
     provider.load_from_data(
@@ -1341,6 +1481,9 @@ fn install_css() {
 }
 
 fn build_ui(app: &Application) {
+    let settings = load_settings();
+    apply_theme(settings.theme);
+    install_theme_action(app, settings.theme);
     AppUi::new(app).present();
 }
 
