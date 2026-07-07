@@ -10,6 +10,34 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 ## [Unreleased]
 
 ### Aggiunto
+- **Crate `symbinux-wireless`**: scansioni Bluetooth/Wi-Fi, scaricamento
+  contatti PBAP e notifiche desktop spostati dalla GUI in un crate portabile
+  del core con un'unica API sincrona. Linux mantiene i percorsi BlueZ
+  (`bluetoothctl`, classic+LE), NetworkManager (`nmcli`) e obexd; Windows e
+  macOS ottengono la scansione **solo BLE** via `btleplug` (i Nokia legacy
+  usano il Bluetooth classic e richiedono ancora il lavoro RFCOMM per-OS
+  pianificato); le notifiche passano ovunque da `notify-rust` (freedesktop /
+  toast Windows / centro notifiche macOS). Le piattaforme senza backend
+  restituiscono errori onesti di indisponibilità. Verificato dal vivo su
+  Windows: una scansione BLE reale ha elencato i dispositivi vicini
+  (`cargo run -p symbinux-wireless --example scan-bluetooth`).
+- **Packaging Windows** (`packaging/windows/`): una build della GUI avviabile
+  con doppio clic — `build-gui.bat` compila contro GTK4 di MSYS2
+  (`x86_64-pc-windows-gnu`), `make-dist.sh` assembla una cartella
+  autosufficiente (closure delle DLL GTK, loader gdk-pixbuf, schemi GSettings,
+  icone, loghi, traduzioni runtime) e `symbinux.iss` produce un installer Inno
+  Setup per-utente con procedura guidata in inglese/italiano. Su Windows la
+  GUI imposta di default `GSK_RENDERER=cairo`, quindi non servono script di
+  lancio né configurazione dell'ambiente. Verificato end-to-end: esecuzione
+  portable con `PATH` pulito, installazione silenziosa, avvio dall'albero
+  installato (traduzioni e impostazioni persistite riconosciute),
+  disinstallazione silenziosa.
+- **Build macOS in CI**: la CI ora compila e testa l'intero workspace — GUI
+  inclusa — su macOS contro GTK4 di Homebrew. Un'esecuzione grafica su
+  hardware macOS reale resta pendente.
+- **Risorse nel layout installato**: la GUI trova `assets/` e `po/` anche
+  relativamente all'eseguibile, quindi logo e 11 traduzioni funzionano fuori
+  dall'albero dei sorgenti.
 - **Shell Phase 1 della GUI Rust GTK4**: `symbinux-gui` ora replica la cornice
   principale della GUI Python con header wordmark/versione, selettore
   USB/Bluetooth/Wi-Fi, logo nello stato vuoto adattato al tema, progresso reale
@@ -106,6 +134,12 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   risincronizza e il buffer resta limitato (test fuzz pseudo-casuale).
 
 ### Modificato
+- **La GUI Rust non possiede più il codice wireless di piattaforma**: le
+  scansioni Bluetooth/Wi-Fi e i contatti PBAP passano da `symbinux-wireless`,
+  e le notifiche desktop usano `notify-rust` al posto di `Gio.Notification`
+  (il manifest Flatpak acquisisce il talk-name `org.freedesktop.Notifications`
+  corrispondente).
+- **MSRV alzata a Rust 1.89** (richiesta da `notify-rust` 4.18).
 - **Layer USB migrato da `rusb`/libusb a [`nusb`](https://docs.rs/nusb) in Rust
   puro**: il claim diretto del dispositivo USB, il distacco del driver kernel (ora
   `detach_and_claim_interface`), la scoperta degli endpoint e l'I/O bulk non

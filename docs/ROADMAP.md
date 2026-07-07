@@ -17,10 +17,22 @@ Status of the Symbinux stack and the planned path to broader phone support.
   capabilities, port-based tracking across AOA/iOS mode switches.
 - **CLI (`symbinux-fbus`)** — `devices`, `detect`, `identify`, `getphonebook`,
   `netmon`, `raw` (guarded). gnokii-style flags.
-- **GUI** — GTK4/libadwaita: channel selector with real USB detection plus real
-  Bluetooth (BlueZ) and Wi-Fi (NetworkManager) scans, capability-aware function
-  buttons, real percentage progress, theme switcher, 7-language localisation.
-- **Packaging** — Flatpak manifest, per-category udev rules, `devices.json`.
+- **GUI (Rust, `symbinux-gui`)** — gtk4-rs without libadwaita, linking the core
+  directly (no subprocess): channel selector with real USB detection, real
+  Bluetooth/Wi-Fi scans, capability-aware function buttons, direct Identify
+  card, real percentage progress with Cancel, theme switcher (Automatic follows
+  the desktop via the XDG portal), 11-language localisation from the `.po`
+  files. Runs on Linux and Windows; builds and tests on macOS in CI. The
+  Python GTK4/libadwaita GUI stays usable until parity is hardware-validated
+  (PBAP) and Phase 5 of `docs/CROSS_PLATFORM_GUI_PLAN.md` retires it.
+- **Wireless core (`symbinux-wireless`)** — Bluetooth/Wi-Fi scanning, PBAP
+  contact pulls and desktop notifications behind one portable API: BlueZ /
+  NetworkManager / obexd on Linux, BLE-only `btleplug` scanning on
+  Windows/macOS (verified live on Windows), `notify-rust` notifications
+  everywhere.
+- **Packaging** — Flatpak manifest, per-category udev rules, `devices.json`,
+  and a Windows portable dist + per-user Inno Setup installer
+  (`packaging/windows/`, GTK runtime bundled, verified end to end).
 - **Typed decoding (started)** — `symbinux-protocol::decode` turns the HW/SW
   version reply into a struct (validated against the real 3310 capture); stable
   `--json` output on `devices`/`detect`; structured logging (`RUST_LOG`).
@@ -36,11 +48,10 @@ The backlog below is prioritised from a multi-project review; see
 
 ## Near term (P0/P1)
 
-1. **Wire the GUI functions end-to-end.** The Identify/Phonebook/SMS/Netmonitor
-   buttons don't yet call the core — they need a **serial-port resolver** that
-   maps a detected USB device (`PortKey`/VID:PID) to a `/dev/ttyUSB*` path, then
-   the GUI can run `identify` and show the decoded result. This port-resolution
-   step is the current blocker for every real phone operation from the GUI.
+1. **Wire the remaining GUI functions end-to-end.** The serial-port resolver
+   exists and Identify already calls the core directly; the Phonebook, SMS and
+   Netmonitor buttons still show an honest "not wired up" state — they are
+   blocked on the response decoders below (item 4), not on plumbing.
 2. **Typed decoding → PIM formats.** Extend `decode` to phonebook entries
    (→ vCard `.vcf`) and SMS PDU (7-bit/UCS2, 3GPP TS 23.040), then add `--json`
    to every command. Unblocks contacts and SMS features.

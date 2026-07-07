@@ -19,11 +19,23 @@ Stato dello stack Symbinux e percorso previsto verso un supporto più ampio.
   AOA/iOS.
 - **CLI (`symbinux-fbus`)** — `devices`, `detect`, `identify`, `getphonebook`,
   `netmon`, `raw` (protetto). Flag in stile gnokii.
-- **GUI** — GTK4/libadwaita: selettore di canale con rilevamento USB reale più
-  scansioni reali Bluetooth (BlueZ) e Wi-Fi (NetworkManager), pulsanti-funzione
-  consapevoli delle capability, progresso a percentuale reale, selettore tema,
-  localizzazione in 7 lingue.
-- **Packaging** — manifest Flatpak, regole udev per categoria, `devices.json`.
+- **GUI (Rust, `symbinux-gui`)** — gtk4-rs senza libadwaita, che linka il core
+  direttamente (nessun subprocess): selettore di canale con rilevamento USB
+  reale, scansioni Bluetooth/Wi-Fi reali, pulsanti-funzione consapevoli delle
+  capability, card Identifica diretta, progresso a percentuale reale con
+  Annulla, selettore tema (Automatico segue il desktop via portal XDG),
+  localizzazione in 11 lingue dai file `.po`. Gira su Linux e Windows; compila
+  e passa i test su macOS in CI. La GUI Python GTK4/libadwaita resta usabile
+  finché la parità non è validata su hardware (PBAP) e la Fase 5 di
+  `docs/CROSS_PLATFORM_GUI_PLAN.md` non la ritira.
+- **Core wireless (`symbinux-wireless`)** — scansioni Bluetooth/Wi-Fi,
+  scaricamento contatti PBAP e notifiche desktop dietro un'unica API portabile:
+  BlueZ / NetworkManager / obexd su Linux, scansione solo-BLE via `btleplug` su
+  Windows/macOS (verificata dal vivo su Windows), notifiche `notify-rust`
+  ovunque.
+- **Packaging** — manifest Flatpak, regole udev per categoria, `devices.json`,
+  più una dist portable Windows + installer Inno Setup per-utente
+  (`packaging/windows/`, runtime GTK incluso, verificato end-to-end).
 - **Decodifica tipizzata (iniziata)** — `symbinux-protocol::decode` trasforma la
   risposta versione HW/SW in una struct (validata contro la cattura reale del
   3310); output `--json` stabile su `devices`/`detect`; logging strutturato
@@ -41,12 +53,10 @@ portabilità.
 
 ## Breve termine (P0/P1)
 
-1. **Cablare le funzioni della GUI end-to-end.** I pulsanti
-   Identifica/Rubrica/SMS/Netmonitor non chiamano ancora il core — serve un
-   **risolutore di porta seriale** che mappi un dispositivo USB rilevato
-   (`PortKey`/VID:PID) su un percorso `/dev/ttyUSB*`, poi la GUI può eseguire
-   `identify` e mostrare il risultato decodificato. Questo è il blocco attuale
-   per ogni operazione reale sul telefono dalla GUI.
+1. **Cablare le funzioni GUI rimanenti end-to-end.** Il risolutore di porta
+   seriale esiste e Identifica chiama già il core direttamente; i pulsanti
+   Rubrica, SMS e Netmonitor mostrano ancora uno stato onesto "non collegato" —
+   sono bloccati dai decoder delle risposte (punto 4), non dalla plumbing.
 2. **Decodifica tipizzata → formati PIM.** Estendere `decode` alle voci di
    rubrica (→ vCard `.vcf`) e al PDU SMS (7-bit/UCS2), poi `--json` su ogni
    comando. Sblocca contatti e SMS.

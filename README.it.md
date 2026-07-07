@@ -69,10 +69,18 @@ target/release/symbinux-fbus identify --port /dev/nokia_fbus
 # Completamenti shell (bash/zsh/fish/…):
 target/release/symbinux-fbus completions bash > ~/.local/share/bash-completion/completions/symbinux-fbus
 
-# GUI
+# GUI (Rust · GTK4, Linux/Windows/macOS)
+cargo build --release -p symbinux-gui
+target/release/symbinux-gui
+
+# GUI Python legacy (Linux, finché la GUI Rust non la sostituisce del tutto)
 pip install -e ".[gui]"
 symbinux
 ```
+
+Su Windows la GUI si distribuisce come installer per-utente avviabile con
+doppio clic (runtime GTK incluso) — vedi
+[packaging/windows/README.md](packaging/windows/README.md).
 
 L'accesso non privilegiato (niente `sudo` nell'uso normale) richiede
 un'installazione udev una tantum — vedi [docs/SETUP.md](docs/SETUP.md). Come
@@ -81,11 +89,14 @@ l'app possiede la connessione (claim diretto dell'USB, pairing Bluetooth forzato
 
 ## Requisiti
 
-- Rust ≥ 1.74. Su Linux, `libudev` + `pkg-config` (per l'enumerazione delle porte
+- Rust ≥ 1.89. Su Linux, `libudev` + `pkg-config` (per l'enumerazione delle porte
   seriali). Niente libusb — l'accesso USB raw è in Rust puro via
   [`nusb`](https://docs.rs/nusb).
-- Per la GUI: Python ≥ 3.11, GTK4 e libadwaita (`gir1.2-gtk-4.0`,
-  `gir1.2-adw-1` su Debian/Ubuntu).
+- Per la GUI Rust: le librerie di sviluppo GTK4 (`libgtk-4-dev` su
+  Debian/Ubuntu, MSYS2 `mingw-w64-x86_64-gtk4` su Windows, `brew install gtk4`
+  su macOS).
+- Per la GUI Python legacy: Python ≥ 3.11, GTK4 e libadwaita
+  (`gir1.2-gtk-4.0`, `gir1.2-adw-1` su Debian/Ubuntu).
 - Una macchina Linux reale, o WSL2 con passthrough USB per i test hardware. Il
   codec di protocollo è testabile senza hardware (`cargo test`).
 

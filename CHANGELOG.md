@@ -10,6 +10,32 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`symbinux-wireless` crate**: Bluetooth/Wi-Fi scanning, PBAP contact pulls
+  and desktop notifications moved out of the GUI into a portable core crate
+  with one synchronous API. Linux keeps the BlueZ (`bluetoothctl`, classic+LE),
+  NetworkManager (`nmcli`) and obexd paths; Windows and macOS get **BLE-only**
+  scanning through `btleplug` (legacy Nokia phones use Bluetooth classic and
+  still need the planned per-OS RFCOMM work); notifications go through
+  `notify-rust` (freedesktop / Windows toast / macOS notification centre)
+  everywhere. Platforms without a backend return honest unavailable errors.
+  Verified live on Windows: a real BLE scan listed nearby devices
+  (`cargo run -p symbinux-wireless --example scan-bluetooth`).
+- **Windows packaging** (`packaging/windows/`): a double-clickable Windows
+  build of the GUI — `build-gui.bat` compiles against MSYS2 GTK4
+  (`x86_64-pc-windows-gnu`), `make-dist.sh` assembles a self-contained folder
+  (GTK DLL closure, gdk-pixbuf loaders, GSettings schemas, icons, logos,
+  runtime translations) and `symbinux.iss` produces a per-user Inno Setup
+  installer with an English/Italian wizard. The GUI defaults `GSK_RENDERER`
+  to cairo on Windows, so no launcher script or environment setup is needed.
+  Verified end to end: portable run on a clean `PATH`, silent install, run
+  from the installed tree (translations and persisted settings picked up),
+  silent uninstall.
+- **macOS CI build**: CI now builds and tests the whole workspace — GUI
+  included — on macOS against Homebrew GTK4. A graphical run on real macOS
+  hardware is still pending.
+- **Installed-layout resources**: the GUI finds `assets/` and `po/` relative
+  to the executable too, so the logo and the 11 translations work outside the
+  source tree.
 - **Rust GTK4 GUI Phase 1 shell**: `symbinux-gui` now mirrors the Python GUI's
   main window frame with the wordmark/version header, USB/Bluetooth/Wi-Fi
   channel selector, theme-aware empty-state logo, real USB detection progress
@@ -100,6 +126,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   wrapping a name/number longer than the protocol's single-byte length field.
 
 ### Changed
+- **The Rust GUI no longer owns wireless platform code**: Bluetooth/Wi-Fi
+  scans and PBAP contacts go through `symbinux-wireless`, and desktop
+  notifications use `notify-rust` instead of `Gio.Notification` (the Flatpak
+  manifest gains the matching `org.freedesktop.Notifications` talk name).
+- **MSRV raised to Rust 1.89** (required by `notify-rust` 4.18).
 - **USB layer migrated from `rusb`/libusb to pure-Rust
   [`nusb`](https://docs.rs/nusb)**: the raw USB device claim, kernel-driver
   detach (now `detach_and_claim_interface`), endpoint discovery and bulk I/O no
