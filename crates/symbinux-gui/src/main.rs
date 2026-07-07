@@ -428,17 +428,18 @@ impl AppUi {
         content.append(&stack);
         content.append(&actions);
 
-        let root = GtkBox::new(Orientation::Vertical, 0);
-        root.append(&header);
-        root.append(&content);
-
         let window = ApplicationWindow::builder()
             .application(app)
             .title("Symbinux")
             .default_width(860)
             .default_height(680)
-            .child(&root)
+            .child(&content)
             .build();
+        // The HeaderBar must be the window's titlebar so there is a single set of
+        // window controls. Adding it as a content child (as before) left the real
+        // window titlebar in place too, doubling the min/maximise/close buttons —
+        // it looked like a window inside a window.
+        window.set_titlebar(Some(&header));
         window.set_size_request(720, 600);
 
         let ui = Rc::new(Self {
