@@ -23,6 +23,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **Rust GUI theme menu**: the Appearance menu applies auto/light/dark theme
   selection through GTK settings and persists the choice in
   `~/.config/symbinux/settings.json`.
+- **Rust GUI native notifications**: pending actions and PBAP contact notices now
+  also emit `Gio.Notification` desktop notifications.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error

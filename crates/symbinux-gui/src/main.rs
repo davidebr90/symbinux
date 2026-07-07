@@ -729,19 +729,16 @@ impl AppUi {
     }
 
     fn show_pending(&self, label: &str) {
-        show_dialog(
-            &self.window,
-            label,
-            "This function is pending in the Rust GUI. The Python GUI remains available until parity is complete.",
-        );
+        let body = "This function is pending in the Rust GUI. The Python GUI remains available until parity is complete.";
+        show_dialog(&self.window, label, body);
+        send_notification(&self.window, label, body);
     }
 
     fn show_contacts_pending(&self) {
-        show_dialog(
-            &self.window,
-            "Contacts",
-            "Bluetooth PBAP contacts are pending in the Rust GUI. No contact transfer has been started.",
-        );
+        let body =
+            "Bluetooth PBAP contacts are pending in the Rust GUI. No contact transfer has been started.";
+        show_dialog(&self.window, "Contacts", body);
+        send_notification(&self.window, "Contacts", body);
     }
 }
 
@@ -1250,6 +1247,17 @@ fn show_dialog(parent: &ApplicationWindow, title: &str, body: &str) {
         .build();
     dialog.connect_response(|dialog, _| dialog.close());
     dialog.present();
+}
+
+fn send_notification(parent: &ApplicationWindow, title: &str, body: &str) {
+    let Some(app) = parent.application() else {
+        return;
+    };
+
+    let notification = gio::Notification::new(title);
+    notification.set_body(Some(body));
+    notification.set_priority(gio::NotificationPriority::Normal);
+    app.send_notification(None, &notification);
 }
 
 fn show_identity_card(parent: &ApplicationWindow, identity: &PhoneIdentity) {

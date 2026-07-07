@@ -25,6 +25,8 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 - **Menu tema nella GUI Rust**: il menu Aspetto applica la selezione
   auto/chiaro/scuro tramite impostazioni GTK e salva la scelta in
   `~/.config/symbinux/settings.json`.
+- **Notifiche native nella GUI Rust**: le azioni pendenti e gli avvisi sui
+  contatti PBAP ora emettono anche notifiche desktop `Gio.Notification`.
 - **Scansioni Bluetooth e Wi-Fi reali**: il canale Bluetooth rileva i dispositivi
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader
