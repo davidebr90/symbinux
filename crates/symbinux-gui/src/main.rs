@@ -7,10 +7,10 @@
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
-    Align, Application, ApplicationWindow, Box as GtkBox, Button, ButtonsType, CssProvider,
+    Align, Application, ApplicationWindow, Box as GtkBox, Button, ButtonsType, CssProvider, Dialog,
     FlowBox, HeaderBar, Image, Label, ListBox, ListBoxRow, MessageDialog, MessageType, Orientation,
-    Picture, ProgressBar, Revealer, RevealerTransitionType, ScrolledWindow, SelectionMode, Spinner,
-    Stack, StackTransitionType, ToggleButton,
+    Picture, ProgressBar, ResponseType, Revealer, RevealerTransitionType, ScrolledWindow,
+    SelectionMode, Spinner, Stack, StackTransitionType, ToggleButton,
 };
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -21,9 +21,11 @@ use std::sync::{
 };
 use std::thread;
 use std::time::Duration;
+use symbinux_transport::Transport as _;
 
 const APP_ID: &str = "it.davidebr90.Symbinux";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+const SERIAL_VIDS: &[u16] = &[0x0421, 0x067b, 0x10c4, 0x0403, 0x1a86];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Channel {
@@ -81,6 +83,7 @@ const CHANNELS: &[ChannelSpec] = &[
 ];
 
 struct FunctionSpec {
+    action: FunctionAction,
     label: &'static str,
     icon: &'static str,
     tooltip: &'static str,
@@ -89,30 +92,40 @@ struct FunctionSpec {
 
 const FUNCTIONS: &[FunctionSpec] = &[
     FunctionSpec {
+        action: FunctionAction::Identify,
         label: "Identify",
         icon: "dialog-information-symbolic",
         tooltip: "Read model, IMEI and firmware",
         capability: "identify",
     },
     FunctionSpec {
+        action: FunctionAction::Pending,
         label: "Phonebook",
         icon: "contact-new-symbolic",
         tooltip: "Import or export contacts",
         capability: "phonebook",
     },
     FunctionSpec {
+        action: FunctionAction::Pending,
         label: "SMS",
         icon: "mail-message-new-symbolic",
         tooltip: "Read and send messages",
         capability: "sms",
     },
     FunctionSpec {
+        action: FunctionAction::Pending,
         label: "Netmonitor",
         icon: "network-cellular-signal-excellent-symbolic",
         tooltip: "Network diagnostics",
         capability: "netmonitor",
     },
 ];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FunctionAction {
+    Identify,
+    Pending,
+}
 
 #[derive(Debug, Clone)]
 struct UiDevice {
@@ -129,6 +142,19 @@ enum DetectMessage {
         stage: String,
     },
     Finished(Result<Vec<UiDevice>, String>),
+}
+
+#[derive(Debug)]
+enum IdentifyMessage {
+    Finished(Result<PhoneIdentity, String>),
+}
+
+#[derive(Debug, Clone)]
+struct PhoneIdentity {
+    port: String,
+    model: String,
+    firmware: String,
+    date: String,
 }
 
 type CancelCallback = Rc<RefCell<Option<Box<dyn Fn()>>>>;
@@ -215,6 +241,19 @@ impl ProgressPanel {
         self.cancel_button.set_visible(true);
         self.bar.set_fraction(0.0);
         self.bar.set_text(Some("0%"));
+        self.label.set_text(text);
+        *self.on_cancel.borrow_mut() = Some(Box::new(on_cancel));
+        self.root.set_reveal_child(true);
+    }
+
+    fn indeterminate<F>(&self, text: &str, on_cancel: F)
+    where
+        F: Fn() + 'static,
+    {
+        self.spinner.set_visible(true);
+        self.spinner.start();
+        self.bar.set_visible(false);
+        self.cancel_button.set_visible(true);
         self.label.set_text(text);
         *self.on_cancel.borrow_mut() = Some(Box::new(on_cancel));
         self.root.set_reveal_child(true);
@@ -444,6 +483,50 @@ impl AppUi {
         });
     }
 
+    fn run_identify(self: &Rc<Self>) {
+        self.cancel_current();
+
+        let cancel = Arc::new(AtomicBool::new(false));
+        *self.current_cancel.borrow_mut() = Some(cancel.clone());
+
+        let cancel_for_button = cancel.clone();
+        self.progress
+            .indeterminate("Identifying phone...", move || {
+                cancel_for_button.store(true, Ordering::SeqCst)
+            });
+
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            let _ = sender.send(IdentifyMessage::Finished(identify_phone()));
+        });
+
+        let ui = Rc::clone(self);
+        glib::timeout_add_local(Duration::from_millis(50), move || {
+            if cancel.load(Ordering::SeqCst) {
+                *ui.current_cancel.borrow_mut() = None;
+                return glib::ControlFlow::Break;
+            }
+
+            match receiver.try_recv() {
+                Ok(IdentifyMessage::Finished(result)) => {
+                    ui.progress.finish();
+                    *ui.current_cancel.borrow_mut() = None;
+                    match result {
+                        Ok(identity) => show_identity_card(&ui.window, &identity),
+                        Err(err) => show_dialog(&ui.window, "Identify", &err),
+                    }
+                    glib::ControlFlow::Break
+                }
+                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    ui.progress.finish();
+                    *ui.current_cancel.borrow_mut() = None;
+                    glib::ControlFlow::Break
+                }
+            }
+        });
+    }
+
     fn populate_devices(&self, devices: Vec<UiDevice>) {
         if devices.is_empty() {
             self.show_empty(Channel::Usb.empty_title(), Channel::Usb.empty_description());
@@ -584,9 +667,13 @@ fn wire_function_buttons(ui: &Rc<AppUi>) {
     for (spec, function_button) in FUNCTIONS.iter().zip(ui.function_buttons.iter()) {
         let ui_for_click = Rc::clone(ui);
         let label = spec.label;
+        let action = spec.action;
         function_button
             .button
-            .connect_clicked(move |_| ui_for_click.show_pending(label));
+            .connect_clicked(move |_| match action {
+                FunctionAction::Identify => ui_for_click.run_identify(),
+                FunctionAction::Pending => ui_for_click.show_pending(label),
+            });
     }
 }
 
@@ -712,6 +799,86 @@ fn show_dialog(parent: &ApplicationWindow, title: &str, body: &str) {
     dialog.present();
 }
 
+fn show_identity_card(parent: &ApplicationWindow, identity: &PhoneIdentity) {
+    let dialog = Dialog::builder()
+        .transient_for(parent)
+        .modal(true)
+        .title("Phone identity")
+        .build();
+    dialog.add_button("Close", ResponseType::Close);
+
+    let card = GtkBox::new(Orientation::Vertical, 8);
+    card.add_css_class("symbinux-card");
+    card.set_margin_top(16);
+    card.set_margin_bottom(16);
+    card.set_margin_start(16);
+    card.set_margin_end(16);
+    card.append(&property_row("Model", &identity.model));
+    card.append(&property_row("Firmware", &identity.firmware));
+    card.append(&property_row("Date", &identity.date));
+    card.append(&property_row("Port", &identity.port));
+
+    dialog.content_area().append(&card);
+    dialog.connect_response(|dialog, _| dialog.close());
+    dialog.present();
+}
+
+fn property_row(name: &str, value: &str) -> GtkBox {
+    let row = GtkBox::new(Orientation::Horizontal, 12);
+    row.set_hexpand(true);
+
+    let name_label = Label::new(Some(name));
+    name_label.add_css_class("dim-label");
+    name_label.set_xalign(0.0);
+    name_label.set_width_chars(10);
+
+    let value_label = Label::new(Some(value));
+    value_label.set_xalign(0.0);
+    value_label.set_selectable(true);
+    value_label.set_hexpand(true);
+
+    row.append(&name_label);
+    row.append(&value_label);
+    row
+}
+
+fn identify_phone() -> Result<PhoneIdentity, String> {
+    let port = symbinux_transport::resolve_serial_port(SERIAL_VIDS).ok_or_else(|| {
+        "No serial port found. Connect a DKU-2/CA-42 cable and try again.".to_string()
+    })?;
+
+    let mut link = symbinux_transport::SerialTransport::open_fbus(&port)
+        .map_err(|err| format!("Opening serial port {port} failed: {err}"))?;
+    link.write_all(&symbinux_protocol::message::fbus_init_preamble(128))
+        .map_err(|err| format!("Sending FBUS init preamble failed: {err}"))?;
+
+    let command = symbinux_protocol::message::identify_hw_sw(0x40);
+    let frames = symbinux_transport::exchange_fbus2_with(
+        &mut link,
+        &command.frame,
+        &symbinux_transport::ExchangeConfig::default(),
+    )
+    .map_err(|err| format!("No valid reply from the phone: {err}"))?;
+
+    let (msg_type, data) = symbinux_protocol::reassemble_fbus2(&frames)
+        .ok_or_else(|| "No data reply from the phone.".to_string())?;
+    let reply = symbinux_protocol::Fbus2Frame {
+        dest: 0,
+        src: 0,
+        msg_type,
+        data,
+    };
+    let version = symbinux_protocol::hw_sw_version(&reply)
+        .ok_or_else(|| "Reply is not a decodable HW/SW version.".to_string())?;
+
+    Ok(PhoneIdentity {
+        port,
+        model: version.model,
+        firmware: version.firmware,
+        date: version.date,
+    })
+}
+
 fn logo_path(dark: bool) -> Option<PathBuf> {
     let name = if dark {
         "symbinux_logo_transparent_dark.png"
@@ -747,6 +914,11 @@ fn install_css() {
             letter-spacing: 0.08em;
         }
         .symbinux-progress {
+            background: alpha(currentColor, 0.06);
+        }
+        .symbinux-card {
+            padding: 12px;
+            border-radius: 8px;
             background: alpha(currentColor, 0.06);
         }
         ",

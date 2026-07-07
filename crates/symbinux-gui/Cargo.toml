@@ -9,6 +9,8 @@ authors.workspace = true
 
 [dependencies]
 symbinux-devices.workspace = true
+symbinux-protocol.workspace = true
+symbinux-transport.workspace = true
 gtk4 = "0.9"
 
 [[bin]]

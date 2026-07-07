@@ -15,6 +15,9 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   USB/Bluetooth/Wi-Fi, logo nello stato vuoto adattato al tema, progresso reale
   della detection USB con Annulla e pulsanti Nokia abilitati in base alle
   capability.
+- **Identifica nella GUI Rust**: l'azione Identifica ora risolve la porta seriale
+  e chiama direttamente `symbinux-transport` / `symbinux-protocol`, poi mostra
+  modello, firmware e data decodificati in una card GTK4.
 - **Scansioni Bluetooth e Wi-Fi reali**: il canale Bluetooth rileva i dispositivi
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader

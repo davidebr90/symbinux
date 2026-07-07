@@ -14,6 +14,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   main window frame with the wordmark/version header, USB/Bluetooth/Wi-Fi
   channel selector, theme-aware empty-state logo, real USB detection progress
   with Cancel, and capability-aware Nokia action buttons.
+- **Rust GUI Identify**: the Identify action now resolves the serial port and
+  calls `symbinux-transport` / `symbinux-protocol` directly, then shows the
+  decoded model, firmware and date in a GTK4 identity card.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error
