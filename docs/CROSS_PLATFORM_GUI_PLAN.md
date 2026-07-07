@@ -1,12 +1,12 @@
 # Cross-platform desktop plan: gtk4-rs GUI + native backends
 
-> Status: **Phase 0 spike started — the Linux path is confirmed.** A minimal
-> `gtk4-rs` (0.9.7, GTK 4.22) window builds and links `symbinux-devices` directly
-> (no subprocess, no libusb); see §6. The rest is a sequence of **dedicated
-> sessions** (§6) with the **Linux GUI kept working throughout** — no big-bang
-> rewrite. Remaining Phase 0 work (the Windows/macOS GTK-runtime packaging recipe)
-> needs those build hosts. Publishing *signed* Win/macOS binaries is a **later**
-> decision (out of scope here).
+> Status: **Phase 1 under way (Linux).** Phase 0 confirmed the toolkit; the
+> `symbinux-gui` crate (gtk4-rs 0.9.7, GTK 4.22, no libadwaita) now lives in the
+> workspace — CI-gated with `libgtk-4-dev`, building green, and listing detected
+> devices by linking `symbinux-devices` directly (no subprocess, no libusb).
+> Remaining Phase 1 work ports the rest of the current GUI's widgets (§6). The
+> **Python GUI stays usable throughout.** Windows/macOS GTK packaging and *signed*
+> binaries remain later decisions.
 
 ## 1. Goal & mission constraint
 
@@ -97,7 +97,7 @@ parity.
 | Phase | Work | Result |
 |---|---|---|
 | **0** | **Spike:** ✅ *Linux confirmed* — a minimal `gtk4-rs` 0.9.7 window builds against GTK 4.22 and links `symbinux-devices` directly (calls `detect_staged` in-process; no subprocess, no libusb). ⏳ *pending:* the Win/macOS GTK-runtime packaging recipe (gvsbuild / homebrew gtk4), which needs those build hosts | de-risk the toolkit |
-| **1** | Port the GUI to `gtk4-rs` on **Linux** at feature parity (channel selector, detection, identify card, progress/cancel, i18n, theme) linking the core directly | Rust GUI == current GUI, on Linux |
+| **1** | Port the GUI to `gtk4-rs` on **Linux** at feature parity linking the core directly. 🔨 *started:* `symbinux-gui` crate created (workspace member, excluded from `default-members`, CI installs `libgtk-4-dev`); device-detection list wired to the core and building green. *Remaining:* channel selector, identify card, progress/cancel, wireless scans, i18n (11 langs), theme | Rust GUI == current GUI, on Linux |
 | **2** | New `symbinux-wireless` crate: BLE scan (`btleplug`) + notifications (`notify-rust`), GUI calls them directly; retire the `bluetoothctl`/`nmcli`/`Gio` shell-outs | wireless in the core, portable |
 | **3** | Cross-platform **build** of the Rust GUI for Windows + macOS (unsigned); verify detection + serial + USB(WinUSB/IOKit) end-to-end | GUI runs on 3 OSes |
 | **4a** | **Classic-BT OBEX/PBAP on Windows** (spike → RFCOMM+OBEX client → PBAP pull) | Nokia contacts over BT on Windows |

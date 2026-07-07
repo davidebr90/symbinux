@@ -5,6 +5,16 @@ members = [
     "crates/symbinux-transport",
     "crates/symbinux-devices",
     "crates/symbinux-cli",
+    "crates/symbinux-gui",
+]
+# The GUI needs the GTK4 dev libraries, so it is excluded from the default set:
+# a plain `cargo build` (core + CLI) works without GTK; `cargo build --workspace`
+# (used by CI, which installs libgtk-4-dev) additionally builds the GUI.
+default-members = [
+    "crates/symbinux-protocol",
+    "crates/symbinux-transport",
+    "crates/symbinux-devices",
+    "crates/symbinux-cli",
 ]
 
 [workspace.package]

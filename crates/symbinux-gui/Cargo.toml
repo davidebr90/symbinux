@@ -1,0 +1,16 @@
+[package]
+name = "symbinux-gui"
+description = "GTK4 (gtk4-rs) desktop GUI for Symbinux — links the Rust core directly"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+symbinux-devices.workspace = true
+gtk4 = "0.9"
+
+[[bin]]
+name = "symbinux-gui"
+path = "src/main.rs"
