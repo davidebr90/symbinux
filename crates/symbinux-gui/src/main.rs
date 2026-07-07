@@ -193,6 +193,11 @@ enum WirelessMessage {
     Wifi(Result<Vec<WifiNetwork>, String>),
 }
 
+#[derive(Debug)]
+enum ContactsMessage {
+    Finished(Result<String, String>),
+}
+
 #[derive(Debug, Clone)]
 struct PhoneIdentity {
     port: String,
@@ -758,13 +763,58 @@ impl AppUi {
         send_notification(&self.window, &title, &body);
     }
 
-    fn show_contacts_pending(&self) {
-        let title = self.tr("Contacts");
-        let body = self.tr(
-            "Bluetooth PBAP contacts are pending in the Rust GUI. No contact transfer has been started.",
-        );
-        show_dialog(&self.window, &title, &body);
-        send_notification(&self.window, &title, &body);
+    fn pull_bt_contacts(self: &Rc<Self>, address: String) {
+        self.cancel_current();
+
+        let cancel = Arc::new(AtomicBool::new(false));
+        *self.current_cancel.borrow_mut() = Some(cancel.clone());
+
+        let cancel_for_button = cancel.clone();
+        self.progress
+            .indeterminate(&self.tr("Fetching contacts…"), move || {
+                cancel_for_button.store(true, Ordering::SeqCst)
+            });
+
+        let (sender, receiver) = mpsc::channel();
+        let cancel_for_thread = cancel.clone();
+        thread::spawn(move || {
+            let result = pull_contacts_pbap(&address, cancel_for_thread);
+            let _ = sender.send(ContactsMessage::Finished(result));
+        });
+
+        let ui = Rc::clone(self);
+        glib::timeout_add_local(Duration::from_millis(50), move || {
+            if cancel.load(Ordering::SeqCst) {
+                *ui.current_cancel.borrow_mut() = None;
+                return glib::ControlFlow::Break;
+            }
+
+            match receiver.try_recv() {
+                Ok(ContactsMessage::Finished(result)) => {
+                    ui.progress.finish();
+                    *ui.current_cancel.borrow_mut() = None;
+                    let title = ui.tr("Contacts");
+                    match result {
+                        Ok(vcards) => {
+                            let body = vcards.trim();
+                            if body.is_empty() {
+                                show_dialog(&ui.window, &title, &ui.tr("No contacts."));
+                            } else {
+                                show_dialog(&ui.window, &title, body);
+                            }
+                        }
+                        Err(err) => show_dialog(&ui.window, &title, &err),
+                    }
+                    glib::ControlFlow::Break
+                }
+                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    ui.progress.finish();
+                    *ui.current_cancel.borrow_mut() = None;
+                    glib::ControlFlow::Break
+                }
+            }
+        });
     }
 }
 
@@ -1013,7 +1063,8 @@ fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
     contacts.add_css_class("flat");
     contacts.set_valign(Align::Center);
     let ui_for_contacts = Rc::clone(ui);
-    contacts.connect_clicked(move |_| ui_for_contacts.show_contacts_pending());
+    let address = device.address.clone();
+    contacts.connect_clicked(move |_| ui_for_contacts.pull_bt_contacts(address.clone()));
     outer.append(&contacts);
 
     row.set_child(Some(&outer));
@@ -1178,6 +1229,169 @@ fn scan_wifi(cancel: Arc<AtomicBool>) -> Result<Vec<WifiNetwork>, String> {
         });
     }
     Ok(networks)
+}
+
+fn pull_contacts_pbap(address: &str, cancel: Arc<AtomicBool>) -> Result<String, String> {
+    require_command(
+        "bluetoothctl",
+        "Bluetooth contacts require bluetoothctl (BlueZ).",
+    )?;
+    require_command(
+        "busctl",
+        "Bluetooth contacts require busctl and bluez-obex.",
+    )?;
+
+    let _ = run_command(
+        "bluetoothctl",
+        &["pair", address],
+        Duration::from_secs(30),
+        &cancel,
+    );
+    let _ = run_command(
+        "bluetoothctl",
+        &["connect", address],
+        Duration::from_secs(15),
+        &cancel,
+    );
+
+    let session_out = run_command(
+        "busctl",
+        &[
+            "--user",
+            "call",
+            "org.bluez.obex",
+            "/org/bluez/obex",
+            "org.bluez.obex.Client1",
+            "CreateSession",
+            "sa{sv}",
+            address,
+            "1",
+            "Target",
+            "s",
+            "pbap",
+        ],
+        Duration::from_secs(20),
+        &cancel,
+    )?;
+    let session = first_dbus_path(&session_out)
+        .ok_or_else(|| "PBAP session was not created by obexd.".to_string())?;
+
+    let result = pull_contacts_from_session(&session, address, &cancel);
+    let _ = run_command(
+        "busctl",
+        &[
+            "--user",
+            "call",
+            "org.bluez.obex",
+            "/org/bluez/obex",
+            "org.bluez.obex.Client1",
+            "RemoveSession",
+            "o",
+            &session,
+        ],
+        Duration::from_secs(5),
+        &cancel,
+    );
+    result
+}
+
+fn pull_contacts_from_session(
+    session: &str,
+    address: &str,
+    cancel: &AtomicBool,
+) -> Result<String, String> {
+    let _ = run_command(
+        "busctl",
+        &[
+            "--user",
+            "call",
+            "org.bluez.obex",
+            session,
+            "org.bluez.obex.PhonebookAccess1",
+            "Select",
+            "ss",
+            "int",
+            "pb",
+        ],
+        Duration::from_secs(10),
+        cancel,
+    )?;
+
+    let target = pbap_target_path(address);
+    let target_str = target
+        .to_str()
+        .ok_or_else(|| "Could not create a UTF-8 target path for contacts.".to_string())?;
+    let transfer_out = run_command(
+        "busctl",
+        &[
+            "--user",
+            "call",
+            "org.bluez.obex",
+            session,
+            "org.bluez.obex.PhonebookAccess1",
+            "PullAll",
+            "sa{sv}",
+            target_str,
+            "0",
+        ],
+        Duration::from_secs(10),
+        cancel,
+    )?;
+    let transfer = first_dbus_path(&transfer_out)
+        .ok_or_else(|| "PBAP transfer was not created by obexd.".to_string())?;
+
+    let deadline = Instant::now() + Duration::from_secs(45);
+    loop {
+        if cancel.load(Ordering::SeqCst) {
+            return Err("Operation cancelled.".to_string());
+        }
+        if Instant::now() >= deadline {
+            return Err("Bluetooth contact transfer timed out.".to_string());
+        }
+
+        let status = run_command(
+            "busctl",
+            &[
+                "--user",
+                "get-property",
+                "org.bluez.obex",
+                &transfer,
+                "org.bluez.obex.Transfer1",
+                "Status",
+            ],
+            Duration::from_secs(3),
+            cancel,
+        )?;
+        if status.contains("\"complete\"") {
+            let text = fs::read_to_string(&target)
+                .map_err(|err| format!("Could not read PBAP contacts: {err}"))?;
+            let _ = fs::remove_file(&target);
+            return Ok(text);
+        }
+        if status.contains("\"error\"") {
+            let _ = fs::remove_file(&target);
+            return Err("Bluetooth contact transfer failed.".to_string());
+        }
+        thread::sleep(Duration::from_millis(200));
+    }
+}
+
+fn pbap_target_path(address: &str) -> PathBuf {
+    let clean_address = address
+        .chars()
+        .map(|ch| if ch.is_ascii_hexdigit() { ch } else { '_' })
+        .collect::<String>();
+    std::env::temp_dir().join(format!(
+        "symbinux-pbap-{clean_address}-{}.vcf",
+        std::process::id()
+    ))
+}
+
+fn first_dbus_path(output: &str) -> Option<String> {
+    output.split_whitespace().find_map(|part| {
+        let value = part.trim_matches('"');
+        value.starts_with('/').then(|| value.to_string())
+    })
 }
 
 fn require_command(program: &str, message: &str) -> Result<(), String> {

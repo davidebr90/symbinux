@@ -28,6 +28,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - **Rust GUI i18n**: the language menu now persists the selected language and
   loads the existing 11 `.po` translations with a pure-Rust parser, falling back
   to English when a string is missing.
+- **Rust GUI Bluetooth contacts**: the Contacts action now force-pairs/connects
+  with `bluetoothctl`, pulls PBAP phonebook data through BlueZ/obexd via
+  `busctl --user`, and reports missing host stack or transfer failures honestly.
+  Real-phone validation is still pending.
 - **Real Bluetooth and Wi-Fi scanning**: the Bluetooth channel discovers devices
   via BlueZ (`bluetoothctl`) and the Wi-Fi channel lists networks via
   NetworkManager (`nmcli`), each with a real spinner and honest empty/error

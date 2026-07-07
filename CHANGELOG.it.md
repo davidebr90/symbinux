@@ -30,6 +30,10 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 - **i18n nella GUI Rust**: il menu Lingua ora salva la lingua scelta e carica le
   11 traduzioni `.po` esistenti con un parser pure Rust, ripiegando sull'inglese
   quando una stringa manca.
+- **Contatti Bluetooth nella GUI Rust**: l'azione Contatti ora forza
+  pair/connect con `bluetoothctl`, scarica la rubrica PBAP via BlueZ/obexd con
+  `busctl --user` e segnala in modo esplicito stack host mancanti o fallimenti
+  del transfer. La validazione con un telefono reale resta pendente.
 - **Scansioni Bluetooth e Wi-Fi reali**: il canale Bluetooth rileva i dispositivi
   via BlueZ (`bluetoothctl`) e il canale Wi-Fi elenca le reti via NetworkManager
   (`nmcli`), ciascuno con spinner reale e stati vuoto/errore onesti (niente loader
