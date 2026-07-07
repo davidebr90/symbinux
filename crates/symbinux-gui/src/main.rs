@@ -955,6 +955,19 @@ fn build_empty_state() -> (GtkBox, Label, Label) {
         logo.set_can_shrink(true);
         logo.set_size_request(360, 120);
         logo.set_halign(Align::Center);
+        // Swap the logo variant whenever the effective scheme flips, so the
+        // wordmark keeps contrast after a theme-menu or desktop change.
+        if let Some(settings) = gtk4::Settings::default() {
+            let logo = logo.downgrade();
+            settings.connect_notify_local(
+                Some("gtk-application-prefer-dark-theme"),
+                move |_, _| {
+                    if let (Some(logo), Some(path)) = (logo.upgrade(), logo_path(prefer_dark())) {
+                        logo.set_filename(Some(&path));
+                    }
+                },
+            );
+        }
         box_.append(&logo);
     } else {
         let fallback = Label::new(Some("SYMBINUX"));
@@ -1698,9 +1711,86 @@ fn settings_path() -> Option<PathBuf> {
 }
 
 fn apply_theme(mode: ThemeMode) {
+    let dark = match mode {
+        ThemeMode::Dark => true,
+        ThemeMode::Light => false,
+        // Automatic follows the desktop preference (freedesktop appearance
+        // portal); when no preference is readable, default to dark.
+        ThemeMode::Auto => system_prefers_dark().unwrap_or(true),
+    };
     if let Some(settings) = gtk4::Settings::default() {
-        settings.set_property("gtk-application-prefer-dark-theme", mode == ThemeMode::Dark);
+        settings.set_property("gtk-application-prefer-dark-theme", dark);
     }
+}
+
+/// Read the desktop colour-scheme preference from the XDG settings portal.
+///
+/// Returns `None` when the portal (or the session bus) is unavailable, e.g. on
+/// Windows or on headless Linux setups.
+fn system_prefers_dark() -> Option<bool> {
+    let connection = gio::bus_get_sync(gio::BusType::Session, gio::Cancellable::NONE).ok()?;
+    let args = ("org.freedesktop.appearance", "color-scheme").to_variant();
+    let call = |method: &str| {
+        connection.call_sync(
+            Some("org.freedesktop.portal.Desktop"),
+            "/org/freedesktop/portal/desktop",
+            "org.freedesktop.portal.Settings",
+            method,
+            Some(&args),
+            None,
+            gio::DBusCallFlags::NONE,
+            1000,
+            gio::Cancellable::NONE,
+        )
+    };
+    let reply = call("ReadOne").or_else(|_| call("Read")).ok()?;
+    // ReadOne wraps the value once (`(v)`), the legacy Read wraps it twice.
+    let mut value = reply.child_value(0);
+    while let Some(inner) = value.get::<glib::Variant>() {
+        value = inner;
+    }
+    match value.get::<u32>()? {
+        1 => Some(true),
+        // 0 = "no preference", which the portal spec treats as light.
+        _ => Some(false),
+    }
+}
+
+/// Re-apply the Automatic theme when the desktop preference changes.
+fn watch_system_theme(app: &Application) {
+    let Ok(connection) = gio::bus_get_sync(gio::BusType::Session, gio::Cancellable::NONE) else {
+        return;
+    };
+    let app = app.downgrade();
+    connection.signal_subscribe(
+        Some("org.freedesktop.portal.Desktop"),
+        Some("org.freedesktop.portal.Settings"),
+        Some("SettingChanged"),
+        Some("/org/freedesktop/portal/desktop"),
+        None,
+        gio::DBusSignalFlags::NONE,
+        move |_, _, _, _, _, parameters| {
+            let Some((namespace, key, _value)) =
+                parameters.get::<(String, String, glib::Variant)>()
+            else {
+                return;
+            };
+            if namespace != "org.freedesktop.appearance" || key != "color-scheme" {
+                return;
+            }
+            let Some(app) = app.upgrade() else {
+                return;
+            };
+            let is_auto = app
+                .lookup_action("theme")
+                .and_then(|action| action.state())
+                .and_then(|state| state.str().map(|value| value == "auto"))
+                .unwrap_or(false);
+            if is_auto {
+                apply_theme(ThemeMode::Auto);
+            }
+        },
+    );
 }
 
 fn install_theme_action(app: &Application, initial: ThemeMode) {
@@ -1725,6 +1815,7 @@ fn install_theme_action(app: &Application, initial: ThemeMode) {
         save_theme(mode);
     });
     app.add_action(&action);
+    watch_system_theme(app);
 }
 
 fn install_language_action(app: &Application, initial: &str) {

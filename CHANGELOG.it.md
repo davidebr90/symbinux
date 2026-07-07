@@ -20,11 +20,14 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
   modello, firmware e data decodificati in una card GTK4.
 - **Scansioni wireless nella GUI Rust**: i canali Bluetooth e Wi-Fi ora eseguono
   scansioni reali `bluetoothctl` / `nmcli` dalla GUI Rust con spinner annullabile
-  ed errori onesti quando lo stack host manca. I contatti PBAP restano
-  esplicitamente pendenti.
+  ed errori onesti quando lo stack host manca.
 - **Menu tema nella GUI Rust**: il menu Aspetto applica la selezione
   auto/chiaro/scuro tramite impostazioni GTK e salva la scelta in
-  `~/.config/symbinux/settings.json`.
+  `~/.config/symbinux/settings.json`. Automatico segue la preferenza
+  chiaro/scuro del desktop tramite il portal freedesktop (ripiegando sullo
+  scuro quando nessuna preferenza è leggibile) e segue in tempo reale i cambi
+  del desktop; il logo dello stato vuoto cambia variante con lo schema
+  effettivo.
 - **Notifiche native nella GUI Rust**: le azioni pendenti e gli avvisi sui
   contatti PBAP ora emettono anche notifiche desktop `Gio.Notification`.
 - **i18n nella GUI Rust**: il menu Lingua ora salva la lingua scelta e carica le

@@ -19,10 +19,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   decoded model, firmware and date in a GTK4 identity card.
 - **Rust GUI wireless scans**: the Bluetooth and Wi-Fi channels now run real
   `bluetoothctl` / `nmcli` scans from the Rust GUI with a cancellable spinner
-  and honest missing-stack errors. PBAP contacts remains explicitly pending.
+  and honest missing-stack errors.
 - **Rust GUI theme menu**: the Appearance menu applies auto/light/dark theme
   selection through GTK settings and persists the choice in
-  `~/.config/symbinux/settings.json`.
+  `~/.config/symbinux/settings.json`. Automatic follows the desktop light/dark
+  preference through the freedesktop appearance portal (falling back to dark
+  when no preference is readable) and tracks live desktop changes; the
+  empty-state logo swaps variant with the effective scheme.
 - **Rust GUI native notifications**: pending actions and PBAP contact notices now
   also emit `Gio.Notification` desktop notifications.
 - **Rust GUI i18n**: the language menu now persists the selected language and

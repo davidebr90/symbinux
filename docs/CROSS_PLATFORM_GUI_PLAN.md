@@ -7,7 +7,9 @@
 > The Rust window now has the GTK4 header, channel selector, honest progress/cancel
 > panel, empty state, capability-aware Nokia action buttons, and direct Identify
 > over `symbinux-transport`. Bluetooth and Wi-Fi scans are ported with honest
-> host-tool errors, the theme menu persists to `settings.json`, and native
+> host-tool errors, the theme menu persists to `settings.json` (Automatic
+> follows the desktop preference via the XDG settings portal, falling back to
+> dark, and the empty-state logo tracks the effective scheme), and native
 > notifications are wired through Gio. The language menu now loads the existing
 > `.po` files in pure Rust. PBAP contacts are wired through BlueZ/obexd and need
 > real phone hardware validation before the Python GUI can be retired. The
