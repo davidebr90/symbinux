@@ -1,10 +1,9 @@
 # D-Bus service plan (`zbus`) — item B8
 
 > Status: **plan / design document — not started.** Execution is a dedicated
-> session per §8. Crate versions and exact API names marked *(verify in spike)*
-> could not be web-verified while writing this (account session limit); the
-> Step 0 spike confirms them against the real crate before any code is written,
-> the same way the nusb migration was de-risked.
+> session per §8. The `zbus` (5.16.0) and `nusb` APIs below have been verified
+> against the current docs; the Step 0 spike now just stands the pieces up
+> end-to-end before the real build, the way the nusb migration was de-risked.
 
 ## 1. Goal
 
@@ -23,22 +22,32 @@ Why it matters:
   we have a real **hotplug event stream** — a service can push `DeviceAdded` /
   `DeviceRemoved` signals the instant hardware changes, no polling.
 
-## 2. `zbus` at a glance *(verify in spike)*
+## 2. `zbus` at a glance (verified against 5.16.0)
 
-- Pure-Rust D-Bus; **async-first** (runs on `tokio` or `async-io` via features),
-  with a `zbus::blocking` façade for synchronous callers.
-- Serve an interface by annotating an `impl` block with `#[zbus::interface(name
-  = "…")]`; methods become D-Bus methods, `#[zbus(property)]` fields become
-  properties (the object server emits `PropertiesChanged` automatically),
-  `#[zbus(signal)]` async fns emit signals.
-- Own a well-known name and register objects via the connection builder, roughly:
-  `connection::Builder::session()?.name("it.davidebr90.Symbinux")?
-  .serve_at("/it/davidebr90/Symbinux", iface)?.build().await?`.
-- **Session bus** is the right bus for a per-user device companion (not system
-  bus — no root, no polkit needed for a start).
-- D-Bus **service activation**: a `*.service` file under
-  `share/dbus-1/services/` with `Name=` + `Exec=` lets the bus start the daemon
-  on first client call.
+- **Version:** `zbus` 5.16.0 (the 5.x line), pure-Rust D-Bus.
+- **Async model:** runtime-agnostic; the **default backend is `async-io`** (zbus
+  spins its own internal I/O thread). To ride our existing tokio runtime instead
+  (the hotplug stream is async), depend as
+  `zbus = { version = "5", default-features = false, features = ["tokio"] }` —
+  this avoids a redundant second executor. A `zbus::blocking` façade also exists
+  (feature `blocking-api`, default-on).
+- **Interface macro:** `#[zbus::interface(name = "…")]` on an `impl` block (the
+  old `#[dbus_interface]` is renamed — do not use it). Methods are async fns;
+  `#[zbus(property)]` marks properties (object server emits `PropertiesChanged`
+  automatically); `#[zbus(signal)]` marks bodiless async fns that emit signals.
+- **Serving a name/object:**
+  `zbus::connection::Builder::session()?.name("it.davidebr90.Symbinux")?`
+  `.serve_at("/it/davidebr90/Symbinux", iface)?.build().await?` (note the path is
+  `connection::Builder`, not the old `ConnectionBuilder`).
+- **Emitting a signal from a background task** (our hotplug loop, i.e. *not*
+  inside a method call): fetch an `InterfaceRef` via
+  `connection.object_server().interface::<_, Devices>(path).await?` and call the
+  generated signal method on it. This is the idiomatic 5.x way to push signals
+  reactively from the tokio task that consumes `watch_devices()`.
+- **Session bus** for a per-user companion (no root/polkit). D-Bus **service
+  activation**: a `*.service` file (`Name=` + absolute `Exec=`, optionally
+  `SystemdService=` to delegate to a systemd `--user` unit) lets the bus lazily
+  start the daemon on first client call.
 
 ## 3. Proposed interface sketch
 
@@ -50,7 +59,7 @@ Bus name `it.davidebr90.Symbinux`, object `/it/davidebr90/Symbinux`, interface
 | `ListDevices() -> a(...)` | method | `symbinux_devices::detect_staged()` → `Vec<DetectedDevice>` serialised (port path, vid/pid, platform/kind, capabilities, strings) |
 | `Identify(port: s) -> a{sv}` | method | resolve port → run the FBUS identify → decoded model/firmware/date (the same path the GUI Identify button uses today) |
 | `DeviceAdded(dev: a{sv})` | signal | `nusb::watch_devices()` → `HotplugEvent::Connected`, re-fingerprinted |
-| `DeviceRemoved(port: s)` | signal | `HotplugEvent::Disconnected` |
+| `DeviceRemoved(id: s)` | signal | `HotplugEvent::Disconnected(DeviceId)` — nusb yields only an opaque `DeviceId` on removal, so the daemon resolves it against a `DeviceId → DetectedDevice` cache |
 | `DeviceChanged(port: s, dev: a{sv})` | signal | `DeviceManager::Transition::Switched` (AOA/iOS mode switch on the same `PortKey`) |
 | `Devices` | property (`a{...}`) | cached current set; `PropertiesChanged` on any transition |
 
@@ -65,12 +74,18 @@ domain logic.
 - **New crate `symbinux-dbus`** (bin `symbinux-daemon`) depending on
   `symbinux-devices` (+ `symbinux-transport` for `Identify`). Keeps the CLI lean
   and the daemon optional.
-- Async runtime: **`tokio`** (zbus + `nusb::watch_devices()` returns a
-  `futures_core::Stream`, easily driven under tokio). Single-threaded flavour is
-  enough.
-- Core loop: hold a `DeviceManager`; seed it from `detect_staged()`; drive
-  `watch_devices()` and translate each `HotplugEvent`/`Transition` into a signal
-  + a properties update.
+- Async runtime: **`tokio`**, with `zbus` built `default-features = false,
+  features = ["tokio"]` so zbus and the hotplug loop share one runtime (no second
+  executor thread). `nusb::watch_devices()` is a *synchronous* call returning a
+  `HotplugWatch` that implements `Stream<Item = HotplugEvent>`.
+- Core loop: hold a `DeviceManager` + a `DeviceId → DetectedDevice` cache; seed
+  from `detect_staged()`; a spawned task polls `watch_devices()` and, per event,
+  emits the matching signal via an **`InterfaceRef`**
+  (`connection.object_server().interface::<_, Devices>(path).await?`), because a
+  signal fired outside a method call goes through the object server, not a bare
+  `Connection`.
+- `HotplugEvent::Disconnected` carries only a `DeviceId`; the cache turns it back
+  into a `DetectedDevice` for the `DeviceRemoved`/`DeviceChanged` payload.
 - The **CLI stays the source of truth for one-shot commands**; the daemon reuses
   the same library crates, so there is no duplicated protocol logic.
 
@@ -102,10 +117,12 @@ domain logic.
 3. **Lifecycle / idle exit** — optionally exit after N seconds with no clients
    (activation restarts it), or stay resident for hotplug signals. Decide in the
    spike; hotplug push argues for resident.
-4. **Flatpak sandbox** — the manifest must add `--own-name=it.davidebr90.Symbinux`
-   (the packaging already opens `org.bluez`/`obexd`/NetworkManager via
-   `--talk-name`, so the pattern exists). The GUI client side needs matching
-   `--talk-name`.
+4. **Flatpak sandbox** — recommended: run the daemon **on the host** (a systemd
+   `--user` unit) so it keeps raw USB (`nusb`/usbfs) access without sandbox device
+   grants; then the Flatpak GUI only needs `--talk-name=it.davidebr90.Symbinux`.
+   If daemon and GUI instead ship in one Flatpak, the manifest needs
+   `--own-name=it.davidebr90.Symbinux` (the packaging already opens
+   `org.bluez`/`obexd`/NetworkManager, so the pattern exists).
 5. **Security** — read-only methods (`ListDevices`) are safe; anything that
    *acts* on hardware (`Identify`, future write ops) should be explicit and, for
    writes, gated. No system-bus/polkit needed as long as it stays session-scoped.
@@ -119,7 +136,7 @@ domain logic.
 
 | # | Step | Testable? |
 |---|---|---|
-| 0 | **Spike:** confirm `zbus` 5.x API (`#[interface]`, signals, name ownership, builder), and that `nusb::watch_devices()` drives cleanly under tokio | build-only |
+| 0 | **Spike (API confirmed in §2):** stand up a minimal `#[zbus::interface]` on the session bus and emit a signal from a tokio task (via `InterfaceRef`) driven by `nusb::watch_devices()`, end-to-end | build/run |
 | 1 | New `symbinux-dbus` crate: define the interface types (serialise `DetectedDevice`/`Capability` to `a{sv}`) | unit |
 | 2 | `ListDevices` + `Identify` methods over `symbinux-devices`/`-transport` | unit + integration on a private bus |
 | 3 | Hotplug: drive `watch_devices()` → `DeviceAdded/Removed/Changed` signals + `Devices` property | integration (mock) |
@@ -132,13 +149,14 @@ when the workspace is green (build/test/clippy/fmt).
 
 ## 9. Open questions for the spike
 
-1. Exact `zbus` 5.x signal-emission ergonomics from a background task holding an
-   `InterfaceRef` (how the hotplug loop reaches the object server to emit).
-2. Resident vs activation-with-idle-exit — which fits hotplug push best.
-3. Serialisation shape of `Capability`/`Platform` over D-Bus (`a{sv}` map vs a
+1. Resident daemon vs activation-with-idle-exit — a resident process is needed to
+   hold the `watch_devices()` stream for push signals; activation only starts it
+   on first call. Likely resident (systemd `--user`).
+2. Serialisation shape of `Capability`/`Platform` over D-Bus (`a{sv}` map vs a
    typed struct signature) for a stable client contract.
-4. Whether the GUI should fully drop the subprocess path or keep it indefinitely
-   as a fallback.
+3. Daemon on the host vs inside the Flatpak — host is simpler for USB access
+   (§7.4).
+4. Whether the GUI keeps the subprocess path indefinitely as a fallback.
 
 ---
 
