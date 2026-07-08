@@ -10,6 +10,21 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Device classification and badges in the wireless lists**: Bluetooth scan
+  results now carry a best-effort vendor + form-factor classification built
+  only from vanilla signals — BlueZ `Icon` / Class of Device / modalias on
+  Linux; BLE manufacturer company identifiers, advertised services and Class
+  of Device on Windows/macOS — plus name heuristics as the last resort. The
+  GUI shows combined emoji badges (apple+watch, robot+phone, TV, headphones,
+  …) and a vendor/type description in each Bluetooth row; Wi-Fi rows gain an
+  open/locked indicator. Verified live on Windows: a Samsung TV and nearby
+  Apple devices classified from their real advertisements.
+- **`docs/VANILLA_CONNECTIVITY.md`**: developer reference on what a stock
+  phone/smartwatch exposes with no software installed — Bluetooth classic
+  profiles per OS (OPP/PBAP/MAP, the car-kit surface), BLE (advertisements,
+  public GATT, ANCS, address randomisation) and Wi-Fi (mDNS/DNS-SD and
+  SSDP/UPnP discovery) — and which identification signals drive the new
+  classifier.
 - **`symbinux-wireless` crate**: Bluetooth/Wi-Fi scanning, PBAP contact pulls
   and desktop notifications moved out of the GUI into a portable core crate
   with one synchronous API. Linux keeps the BlueZ (`bluetoothctl`, classic+LE),

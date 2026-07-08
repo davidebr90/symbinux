@@ -10,6 +10,10 @@ use std::time::Duration;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::Manager;
 
+use crate::classify::{
+    first_known_kind, first_known_vendor, kind_from_cod, kind_from_name, kind_from_service_ids,
+    vendor_from_company_id, vendor_from_name,
+};
 use crate::{BluetoothDevice, WirelessError};
 
 const SCAN_WINDOW: Duration = Duration::from_secs(8);
@@ -66,18 +70,60 @@ async fn scan_inner(cancel: &AtomicBool) -> Result<Vec<BluetoothDevice>, Wireles
         } else {
             address
         };
-        let name = peripheral
-            .properties()
-            .await
-            .ok()
-            .flatten()
-            .and_then(|properties| properties.local_name)
+        let properties = peripheral.properties().await.ok().flatten();
+        let name = properties
+            .as_ref()
+            .and_then(|properties| properties.local_name.clone())
             .unwrap_or_default();
+
+        // Classification signals from the advertisement, strongest first:
+        // Class of Device (when the platform reports it), manufacturer
+        // company identifier, advertised 16-bit services, then the name.
+        let company_vendor = properties
+            .as_ref()
+            .and_then(|properties| {
+                properties
+                    .manufacturer_data
+                    .keys()
+                    .copied()
+                    .map(vendor_from_company_id)
+                    .find(|vendor| *vendor != crate::Vendor::Unknown)
+            })
+            .unwrap_or_default();
+        let cod_kind = properties
+            .as_ref()
+            .and_then(|properties| properties.class)
+            .map(kind_from_cod)
+            .unwrap_or_default();
+        let service_kind = properties
+            .as_ref()
+            .map(|properties| {
+                let short_ids = properties
+                    .services
+                    .iter()
+                    .filter_map(short_service_id)
+                    .collect::<Vec<_>>();
+                kind_from_service_ids(&short_ids)
+            })
+            .unwrap_or_default();
+
         devices.push(BluetoothDevice {
             address,
-            name,
             paired: false,
+            vendor: first_known_vendor(&[company_vendor, vendor_from_name(&name)]),
+            kind: first_known_kind(&[cod_kind, service_kind, kind_from_name(&name)]),
+            name,
         });
     }
     Ok(devices)
+}
+
+/// Extract the 16-bit service id from a UUID built on the Bluetooth base
+/// UUID (`0000xxxx-0000-1000-8000-00805f9b34fb`).
+fn short_service_id(uuid: &uuid::Uuid) -> Option<u16> {
+    const BASE_TAIL: u128 = 0x0000_1000_8000_00805f9b34fb;
+    let value = uuid.as_u128();
+    let head = (value >> 96) as u32;
+    let tail = value & 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
+    (tail == BASE_TAIL && head <= u16::MAX as u32).then_some(head as u16)
 }

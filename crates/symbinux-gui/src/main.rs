@@ -27,7 +27,7 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 use symbinux_transport::Transport as _;
-use symbinux_wireless::{BluetoothDevice, WifiNetwork};
+use symbinux_wireless::{BluetoothDevice, Kind, Vendor, WifiNetwork};
 
 const APP_ID: &str = "it.davidebr90.Symbinux";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -1032,6 +1032,46 @@ fn device_row(device: &UiDevice) -> ListBoxRow {
     row
 }
 
+/// Combined emoji badge for a classified device: ecosystem first, then form
+/// factor (apple+watch, robot+phone, tv, …). Empty when nothing is known.
+fn device_badge(vendor: Vendor, kind: Kind) -> String {
+    let mut badge = String::new();
+    match vendor {
+        Vendor::Apple => badge.push('\u{1F34E}'),
+        // The robot means "runs Android" — claim it only for phones and
+        // watches, where these vendors actually ship it (their TVs may run
+        // Tizen/webOS, so no robot there).
+        vendor
+            if vendor.is_android_ecosystem()
+                && matches!(kind, Kind::Smartphone | Kind::Phone | Kind::Watch) =>
+        {
+            badge.push('\u{1F916}')
+        }
+        _ => {}
+    }
+    badge.push_str(match kind {
+        Kind::Smartphone | Kind::Phone => "\u{1F4F1}",
+        Kind::Watch => "\u{231A}",
+        Kind::Computer => "\u{1F4BB}",
+        Kind::Tv => "\u{1F4FA}",
+        Kind::Audio => "\u{1F3A7}",
+        Kind::MediaPlayer => "\u{1F3B5}",
+        Kind::Peripheral => "\u{2328}\u{FE0F}",
+        Kind::Unknown => "",
+    });
+    badge
+}
+
+/// Untranslated technical description ("Apple smartwatch", "Samsung", …).
+fn device_description(vendor: Vendor, kind: Kind) -> Option<String> {
+    match (vendor.label(), kind.label()) {
+        (Some(vendor), Some(kind)) => Some(format!("{vendor} {kind}")),
+        (Some(vendor), None) => Some(vendor.to_string()),
+        (None, Some(kind)) => Some(kind.to_string()),
+        (None, None) => None,
+    }
+}
+
 fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
     let row = ListBoxRow::new();
     let outer = GtkBox::new(Orientation::Horizontal, 12);
@@ -1043,6 +1083,13 @@ fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
     let icon = Image::from_icon_name("bluetooth-symbolic");
     icon.set_valign(Align::Center);
     outer.append(&icon);
+
+    let badge = device_badge(device.vendor, device.kind);
+    if !badge.is_empty() {
+        let badge_label = Label::new(Some(&badge));
+        badge_label.set_valign(Align::Center);
+        outer.append(&badge_label);
+    }
 
     let text = GtkBox::new(Orientation::Vertical, 4);
     text.set_hexpand(true);
@@ -1057,6 +1104,9 @@ fn bluetooth_row(ui: &Rc<AppUi>, device: &BluetoothDevice) -> ListBoxRow {
     title.add_css_class("heading");
 
     let mut subtitle = device.address.clone();
+    if let Some(description) = device_description(device.vendor, device.kind) {
+        subtitle.push_str(&format!(" - {description}"));
+    }
     if device.paired {
         subtitle.push_str(&format!(" - {}", ui.tr("paired")));
     }
@@ -1106,6 +1156,14 @@ fn wifi_row(network: &WifiNetwork) -> ListBoxRow {
     text.append(&title);
     text.append(&subtitle);
     outer.append(&text);
+
+    let lock = Label::new(Some(if network.security == "open" {
+        "\u{1F513}"
+    } else {
+        "\u{1F512}"
+    }));
+    lock.set_valign(Align::Center);
+    outer.append(&lock);
 
     row.set_child(Some(&outer));
     row

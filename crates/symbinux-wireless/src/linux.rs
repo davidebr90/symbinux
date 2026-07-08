@@ -7,6 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::classify::{
+    first_known_kind, first_known_vendor, kind_from_bluez_icon, kind_from_cod, kind_from_name,
+    vendor_from_company_id, vendor_from_name, Kind, Vendor,
+};
 use crate::exec::{require_command, run_command};
 use crate::{BluetoothDevice, WifiNetwork, WirelessError};
 
@@ -37,7 +41,51 @@ pub(crate) fn scan_bluetooth(cancel: &AtomicBool) -> Result<Vec<BluetoothDevice>
         cancel,
     )?;
 
-    Ok(parse_bluetoothctl_devices(&devices_out, &paired_out))
+    let mut devices = parse_bluetoothctl_devices(&devices_out, &paired_out);
+    for device in &mut devices {
+        // `bluetoothctl info` reads the local BlueZ cache — cheap per device.
+        if let Ok(info) = run_command(
+            "bluetoothctl",
+            &["info", &device.address],
+            Duration::from_secs(4),
+            cancel,
+        ) {
+            let (vendor, kind) = classify_from_bluetoothctl_info(&info, &device.name);
+            device.vendor = vendor;
+            device.kind = kind;
+        }
+    }
+    Ok(devices)
+}
+
+/// Classify a device from its `bluetoothctl info` output (Icon, Class,
+/// Modalias) plus name heuristics, strongest signal first.
+fn classify_from_bluetoothctl_info(info: &str, name: &str) -> (Vendor, Kind) {
+    let field = |prefix: &str| {
+        info.lines()
+            .map(str::trim)
+            .find_map(|line| line.strip_prefix(prefix))
+            .map(str::trim)
+    };
+
+    let icon_kind = field("Icon:").map(kind_from_bluez_icon).unwrap_or_default();
+    let cod_kind = field("Class:")
+        .and_then(|value| u32::from_str_radix(value.trim_start_matches("0x"), 16).ok())
+        .map(kind_from_cod)
+        .unwrap_or_default();
+
+    // Modalias `bluetooth:vXXXXp…` carries the SIG company identifier.
+    let modalias_vendor = field("Modalias:")
+        .and_then(|value| value.strip_prefix("bluetooth:v"))
+        .and_then(|rest| rest.get(..4))
+        .and_then(|hex| u16::from_str_radix(hex, 16).ok())
+        .map(vendor_from_company_id)
+        .unwrap_or_default();
+
+    (
+        first_known_vendor(&[modalias_vendor, vendor_from_name(name)]),
+        first_known_kind(&[icon_kind, cod_kind, kind_from_name(name)]),
+    )
 }
 
 fn parse_bluetoothctl_devices(devices_out: &str, paired_out: &str) -> Vec<BluetoothDevice> {
@@ -60,8 +108,10 @@ fn parse_bluetoothctl_devices(devices_out: &str, paired_out: &str) -> Vec<Blueto
         let name = parts.next().unwrap_or("").trim().to_string();
         devices.push(BluetoothDevice {
             address: address.to_string(),
-            name,
             paired: paired.iter().any(|item| item == address),
+            vendor: crate::classify::vendor_from_name(&name),
+            kind: crate::classify::kind_from_name(&name),
+            name,
         });
     }
     devices
@@ -341,6 +391,20 @@ mod tests {
             Some("/org/bluez/obex/client/session0")
         );
         assert_eq!(first_dbus_path("u 42"), None);
+    }
+
+    #[test]
+    fn classifies_from_info_output() {
+        let info = "Device 00:11:22:33:44:55 (public)\n\tName: Galaxy Watch4\n\tClass: 0x000704\n\tIcon: watch\n\tModalias: bluetooth:v0075p0100d0001\n";
+        let (vendor, kind) = classify_from_bluetoothctl_info(info, "Galaxy Watch4");
+        assert_eq!(vendor, Vendor::Samsung);
+        assert_eq!(kind, Kind::Watch);
+
+        // Icon wins over the name; unknown stays honest.
+        let info = "\tIcon: phone\n";
+        let (vendor, kind) = classify_from_bluetoothctl_info(info, "mystery");
+        assert_eq!(vendor, Vendor::Unknown);
+        assert_eq!(kind, Kind::Smartphone);
     }
 
     #[test]

@@ -15,7 +15,9 @@ fn main() {
                 } else {
                     &device.name
                 };
-                println!("{}  {}", device.address, name);
+                let vendor = device.vendor.label().unwrap_or("?");
+                let kind = device.kind.label().unwrap_or("?");
+                println!("{}  {name}  [{vendor} / {kind}]", device.address);
             }
             println!("{} device(s) found", devices.len());
         }

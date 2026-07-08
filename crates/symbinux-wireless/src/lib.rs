@@ -23,10 +23,13 @@ use std::sync::atomic::AtomicBool;
 
 #[cfg(any(windows, target_os = "macos"))]
 mod ble;
+mod classify;
 #[cfg(target_os = "linux")]
 mod exec;
 #[cfg(target_os = "linux")]
 mod linux;
+
+pub use classify::{Kind, Vendor};
 
 /// A device discovered by a Bluetooth scan.
 #[derive(Debug, Clone)]
@@ -34,6 +37,10 @@ pub struct BluetoothDevice {
     pub address: String,
     pub name: String,
     pub paired: bool,
+    /// Best-effort vendor classification (see `docs/VANILLA_CONNECTIVITY.md` §4).
+    pub vendor: Vendor,
+    /// Best-effort form-factor classification.
+    pub kind: Kind,
 }
 
 /// A network discovered by a Wi-Fi scan.
