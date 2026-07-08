@@ -77,6 +77,11 @@ The backlog below is prioritised from a multi-project review; see
    BlueZ `obexd` D-Bus, to reach cable-dead Nokias (see `docs/COMPARISON.md`).
 10. **FBUS/2 over raw USB (DKU-2 native)** and **BB5** — auto-discover the FBUS
     bulk endpoints / PhoNet interface; per-model table in `devices.json`.
+10b. **Deeper native access (read-only recovery)** — from the NSS study
+    (`docs/NOKIA_SERVICE_MODES.md`): the PhoNet-over-USB "PC Suite" service
+    channel, normal/local mode detection, filesystem browse & pull, and
+    read-only Permanent Memory dumps for identity/settings recovery. Writes to
+    PM / locks / product code / flash stay out of scope.
 
 ## Infrastructure & cross-platform
 
@@ -91,6 +96,9 @@ The backlog below is prioritised from a multi-project review; see
 ## Explicitly out of scope
 
 - Firmware flashing / write operations (brick risk on unsupported hardware).
+- Permanent Memory / SIM-lock / product-code / IMEI **writes** — the NSS-style
+  service-tool features that change device identity or locks
+  (`docs/NOKIA_SERVICE_MODES.md`). PM is a **read-only** recovery target.
 - Any dependency on proprietary Nokia software or reverse-engineered binaries.
 
 ## How to help

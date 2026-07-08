@@ -10,6 +10,17 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 ## [Unreleased]
 
 ### Aggiunto
+- **`docs/NOKIA_SERVICE_MODES.md`**: uno studio di Nemesis Service Suite (NSS)
+  e dell'ecosistema di service-tool DCT4/BB5, distillato in ciò che è
+  riutilizzabile clean-room per il **recupero dati in sola lettura** dai
+  telefoni Nokia abbandonati — il canale di servizio PhoNet-over-USB "PC
+  Suite", le modalità operative normale vs local/test, il catalogo di servizi
+  da mirare (rubrica, SMS, calendario, filesystem, identificazione, network
+  monitor) e i campi di Permanent Memory in sola lettura. Le scritture su PM /
+  SIM-lock / product code / IMEI e il flashing sono documentati esplicitamente
+  come **fuori scope** (rischio brick/identità). La roadmap acquisisce una voce
+  "accesso nativo più profondo" in sola lettura e una nota fuori-scope
+  corrispondente.
 - **Classificazione dei dispositivi e badge nelle liste wireless**: i
   risultati della scansione Bluetooth ora portano una classificazione
   best-effort di produttore + forma costruita solo da segnali vanilla —
