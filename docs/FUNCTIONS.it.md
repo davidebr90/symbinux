@@ -55,6 +55,7 @@ id grezzi anche per cavi non riconosciuti. Non esegue I/O col telefono.
 | `ports [--json]` | Elenca le porte seriali esposte dal SO (con id USB). | Confermato |
 | `identify [--port <p>] [--usb] [--json]` | Query versione HW/SW. `--usb` fa claim diretto del Nokia via `nusb` (Rust puro, nessun driver seriale); `--json` stampa modello/firmware/data decodificati. | Confermato |
 | `getphonebook --port <p> --mem <me\|sim\|…> --location <n>` | Legge una voce di rubrica. | Confermato |
+| `getcalendar --port <p> --location <n>` | Legge una nota di calendario (sola lettura; risposta grezza, decodifica in attesa di hardware). | Sperimentale (LIKELY) |
 | `netmon --port <p> [--screen <n>]` | Schermata/controllo netmonitor. | Confermato |
 | `raw --port <p> --msg-type <hex> --block "<hex …>" --i-understand-risk` | Invia un frame FBUS/2 arbitrario (reverse engineering). | Sperimentale |
 | `completions <bash\|zsh\|fish\|…>` | Stampa uno script di completamento shell su stdout. | Confermato |

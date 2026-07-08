@@ -24,6 +24,8 @@ pub const MSG_PHONEBOOK: u8 = 0x03;
 pub const MSG_SMS: u8 = 0x02;
 /// SMS folder/status operations.
 pub const MSG_SMS_FOLDER: u8 = 0x14;
+/// Calendar / to-do note operations.
+pub const MSG_CALENDAR: u8 = 0x13;
 
 // --- Phonebook memory types ----------------------------------------------------
 
@@ -129,6 +131,25 @@ pub fn netmonitor(field: u8, seq: u8) -> Command {
     )
 }
 
+/// Read a calendar note at `location` (1-based).
+///
+/// Read-only, but the exact block layout of the `0x13` family is **LIKELY**,
+/// not CONFIRMED (gnokii wires the calendar note under this message type; the
+/// per-model request/response bytes are not yet validated against a real
+/// capture — see `docs/PROTOCOL_NOTES.md`). Tagged [`Safety::Experimental`]
+/// because the payload boundaries are unverified, so callers gate it and treat
+/// the reply as raw until decoded on hardware.
+pub fn read_calendar_note(location: u16, seq: u8) -> Command {
+    let [loc_hi, loc_lo] = location.to_be_bytes();
+    single(
+        "calendar:read",
+        Safety::Experimental,
+        MSG_CALENDAR,
+        &[0x66, 0x00, loc_hi, loc_lo],
+        seq,
+    )
+}
+
 /// Error building a command from user input.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum CommandError {
@@ -209,6 +230,16 @@ mod tests {
         let cmd = read_phonebook(MemoryType::Phone, 5, 0x40);
         let (block, _, _) = cmd.frame.block_parts().unwrap();
         assert_eq!(block, &[0x00, 0x01, 0x02, 0x05, 0x00]);
+    }
+
+    #[test]
+    fn calendar_read_payload_and_safety() {
+        let cmd = read_calendar_note(0x0102, 0x41);
+        assert_eq!(cmd.safety, Safety::Experimental);
+        assert_eq!(cmd.frame.msg_type, MSG_CALENDAR);
+        let (block, ftg, _) = cmd.frame.block_parts().unwrap();
+        assert_eq!(block, &[0x66, 0x00, 0x01, 0x02]);
+        assert_eq!(ftg, 0x01);
     }
 
     #[test]

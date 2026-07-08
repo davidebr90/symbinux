@@ -107,6 +107,15 @@ enum Commands {
         #[arg(long)]
         location: u8,
     },
+    /// Read a calendar note (read-only; reply decoding pending hardware).
+    Getcalendar {
+        /// Serial port; falls back to `default_port` from config.toml.
+        #[arg(long)]
+        port: Option<String>,
+        /// 1-based note location.
+        #[arg(long)]
+        location: u16,
+    },
     /// Show or control the netmonitor.
     Netmon {
         /// Serial port; falls back to `default_port` from config.toml.
@@ -550,6 +559,14 @@ fn main() -> Result<()> {
             run_command(
                 open_serial(&p)?,
                 &message::read_phonebook(mem, location, 0x40),
+                &xcfg,
+            )
+        }
+        Commands::Getcalendar { port, location } => {
+            let p = resolve_port_arg(port, &cfg)?;
+            run_command(
+                open_serial(&p)?,
+                &message::read_calendar_note(location, 0x40),
                 &xcfg,
             )
         }

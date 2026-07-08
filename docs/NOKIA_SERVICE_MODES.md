@@ -125,11 +125,44 @@ lifetimer) as diagnostic/forensic data. **We never write PM** — PM writes are
 how NSS changes product codes / removes SIM-locks and are exactly the
 brick/legality risk we exclude.
 
-## 5. What to build in Symbinux (backlog, read-only)
+## 5. Symbian (Series 60/80) vs feature phones (Series 30/40)
+
+The channels differ by phone family, and this matters for "Symbian and/or
+Nokia":
+
+- **Feature phones (Series 30/40, DCT4/BB5)** — the **FBUS/PhoNet service
+  catalog** in §4 is the native path: phonebook/SMS/calendar/netmon over
+  FBUS, PM in local mode. This is where our FBUS core applies directly.
+- **Symbian (Series 60/80)** — Symbian never exposed the rich PIM catalog over
+  raw FBUS *vanilla*: gnokii's Series 60 support needed a **phone-side helper
+  (`gnapplet`) installed over OBEX**, which is **not** "no software installed".
+  So a Symbian phone's vanilla surface is: **OBEX file access** (browse/pull
+  the file system, incl. `Contacts.cdb`, media, `.vcf`/`.vcs` exports),
+  **PC-Suite PhoNet** for device info/sync, and **SyncML** for
+  contacts/calendar. For Symbian, therefore, the recovery path is **OBEX FS
+  pull + SyncML/vCard-vCalendar export** (already partly reachable through the
+  wireless OBEX work), not the FBUS service catalog. CONFIRMED that gnapplet is
+  install-required; LIKELY for the OBEX/SyncML surface — verify per model.
+
+The shared, OS-independent win for both families is the **interchange/export
+layer** (vCard / vCalendar / vMessage): however the raw data is obtained (FBUS
+decode on feature phones, OBEX files on Symbian), it normalises to the same
+portable records.
+
+## 6. What to build in Symbinux (backlog, read-only)
 
 Mapped to our crates, in rough priority. None re-introduces libusb; all are
 reads.
 
+- ✅ **Interchange/export layer (started)** — `symbinux-protocol::decode` now
+  has `CalendarEntry::to_ical` (RFC 5545) and `Sms::to_vmessage` (`.vmg`)
+  alongside the existing `PhonebookEntry::to_vcard`, so recovered PIM
+  normalises to portable records regardless of transport (FBUS or OBEX). Pure,
+  unit-tested, no hardware.
+- ⏳ **Calendar/to-do read** — a read-only `read_calendar_note` request builder
+  (`0x13`) and the `getcalendar` CLI command exist and send the request; the
+  **response layout is LIKELY, not validated**, so the reply is shown raw until
+  captured on a real phone (see `PROTOCOL_NOTES.md`).
 1. **PhoNet-over-USB service channel** (`symbinux-transport`): claim the
    CDC-PhoNet interface with `nusb` and carry our FBUS service messages over
    it, so the full catalog works on the app-owned USB path without a serial
@@ -138,20 +171,23 @@ reads.
 2. **Mode detection** (`symbinux-devices`/CLI): report normal vs local/test so
    the GUI can steer recovery (rich PIM in normal mode; PM/identity in local
    mode).
-3. **Calendar/to-do read → iCal** (`symbinux-protocol::decode` + CLI/GUI):
-   extend the typed decoder (`0x13`) the way phonebook/SMS already are.
-4. **Filesystem browse & pull** (`0x6D` family): list and download files
-   (media, `.vcf`/`.vmg`, settings) on Series 40/60 — a second, richer
-   recovery path than per-record reads.
+3. **Calendar/to-do response decoder** — turn the `getcalendar` raw reply into
+   `CalendarEntry` once a capture pins the byte layout, the way phonebook/SMS
+   already are.
+4. **Filesystem / OBEX browse & pull** (`0x6D` family on Series 40; OBEX on
+   Symbian): list and download files (media, `.vcf`/`.vmg`, settings) — a
+   second, richer recovery path than per-record reads, and the primary path
+   on Symbian.
 5. **PM field read + dump** (CLI `pm-read <field>` / `pm-dump`): read-only
    identity/settings/calibration recovery, with each field tagged by
    confidence; **no write path exposed**.
 6. **Backup bundle** (already on the roadmap): one command dumping
-   phonebook + SMS + calendar (+ PM identity) to `.vcf`/`.vmg`/`.ics`/`.json`.
+   phonebook + SMS + calendar (+ PM identity) to `.vcf`/`.vmg`/`.ics`/`.json`,
+   built on the export layer above.
 
-Each item starts with a hardware spike (the confidence tags above say why) and
-lands only behind the existing green gate. Writes to the phone stay gated as
-`Experimental` and PM/lock/flash writes remain **out of scope**.
+Each remaining item starts with a hardware spike (the confidence tags above say
+why) and lands only behind the existing green gate. Writes to the phone stay
+gated as `Experimental` and PM/lock/flash writes remain **out of scope**.
 
 ## References
 

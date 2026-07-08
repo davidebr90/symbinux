@@ -129,6 +129,74 @@ impl PhonebookEntry {
     }
 }
 
+// --- Calendar entry + iCalendar --------------------------------------------
+
+/// The kind of a Nokia calendar entry (Series 30/40 note families).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CalendarKind {
+    Meeting,
+    Call,
+    Birthday,
+    Reminder,
+    Memo,
+}
+
+/// A single calendar entry, platform-neutral.
+///
+/// Timestamps are stored as pre-formatted iCalendar date-time strings
+/// (`YYYYMMDDTHHMMSS`) so this model has no date-library dependency; the
+/// decoder that fills it from a phone reply is responsible for the formatting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CalendarEntry {
+    pub kind: CalendarKind,
+    /// Start date-time, `YYYYMMDDTHHMMSS` (or `YYYYMMDD` for all-day).
+    pub start: String,
+    /// Optional end date-time in the same format.
+    pub end: Option<String>,
+    pub summary: String,
+    /// Phone number for a Call entry, or location for a Meeting.
+    pub location: Option<String>,
+}
+
+impl CalendarEntry {
+    /// Render as an RFC 5545 iCalendar document with one component. Birthdays
+    /// become a yearly-recurring event, the interchange convention gnokii uses.
+    pub fn to_ical(&self) -> String {
+        let mut out = String::from("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Symbinux//EN\r\n");
+        if self.kind == CalendarKind::Reminder || self.kind == CalendarKind::Memo {
+            out.push_str("BEGIN:VTODO\r\n");
+            out.push_str(&format!("DTSTART:{}\r\n", self.start));
+            out.push_str(&format!("SUMMARY:{}\r\n", ical_escape(&self.summary)));
+            out.push_str("END:VTODO\r\n");
+        } else {
+            out.push_str("BEGIN:VEVENT\r\n");
+            out.push_str(&format!("DTSTART:{}\r\n", self.start));
+            if let Some(end) = &self.end {
+                out.push_str(&format!("DTEND:{end}\r\n"));
+            }
+            out.push_str(&format!("SUMMARY:{}\r\n", ical_escape(&self.summary)));
+            if let Some(location) = &self.location {
+                out.push_str(&format!("LOCATION:{}\r\n", ical_escape(location)));
+            }
+            if self.kind == CalendarKind::Birthday {
+                out.push_str("RRULE:FREQ=YEARLY\r\n");
+            }
+            out.push_str("END:VEVENT\r\n");
+        }
+        out.push_str("END:VCALENDAR\r\n");
+        out
+    }
+}
+
+/// Escape the iCalendar TEXT specials (`\`, `;`, `,`, newlines) per RFC 5545.
+fn ical_escape(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace(';', "\\;")
+        .replace(',', "\\,")
+        .replace('\n', "\\n")
+}
+
 // --- SMS (3GPP TS 23.040 SMS-DELIVER) ---------------------------------------
 
 /// A decoded incoming text message.
@@ -136,6 +204,26 @@ impl PhonebookEntry {
 pub struct Sms {
     pub sender: String,
     pub text: String,
+}
+
+impl Sms {
+    /// Render as a vMessage (`.vmg`) record — the IrMC/Nokia PC Suite
+    /// interchange format gnokii/gammu use for stored messages. The received
+    /// text goes in a `VBODY`; the sender is carried in the embedded vCard.
+    pub fn to_vmessage(&self) -> String {
+        format!(
+            "BEGIN:VMSG\r\nVERSION:1.1\r\nX-IRMC-STATUS:READ\r\nX-IRMC-BOX:INBOX\r\n\
+             BEGIN:VCARD\r\nVERSION:2.1\r\nTEL:{}\r\nEND:VCARD\r\n\
+             BEGIN:VBODY\r\n{}\r\nEND:VBODY\r\nEND:VMSG\r\n",
+            self.sender,
+            vmessage_escape(&self.text)
+        )
+    }
+}
+
+/// Escape the vMessage/vCard 2.1 body specials so the record stays well-formed.
+fn vmessage_escape(value: &str) -> String {
+    value.replace('\r', "").replace('\n', "\\n")
 }
 
 /// Decode an SMS-DELIVER PDU (the format a phone stores received messages in).
@@ -207,6 +295,65 @@ mod tests {
         assert!(v.contains("FN:Bob"));
         assert!(v.contains("TEL:+39123"));
         assert!(v.starts_with("BEGIN:VCARD"));
+    }
+
+    #[test]
+    fn calendar_meeting_to_ical() {
+        let e = CalendarEntry {
+            kind: CalendarKind::Meeting,
+            start: "20260708T093000".into(),
+            end: Some("20260708T100000".into()),
+            summary: "Team; sync".into(),
+            location: Some("Room 1".into()),
+        };
+        let ics = e.to_ical();
+        assert!(ics.starts_with("BEGIN:VCALENDAR"));
+        assert!(ics.contains("BEGIN:VEVENT"));
+        assert!(ics.contains("DTSTART:20260708T093000"));
+        assert!(ics.contains("DTEND:20260708T100000"));
+        // The semicolon in the summary must be escaped.
+        assert!(ics.contains("SUMMARY:Team\\; sync"));
+        assert!(ics.contains("LOCATION:Room 1"));
+        assert!(ics.trim_end().ends_with("END:VCALENDAR"));
+    }
+
+    #[test]
+    fn calendar_birthday_recurs_yearly() {
+        let e = CalendarEntry {
+            kind: CalendarKind::Birthday,
+            start: "20260708".into(),
+            end: None,
+            summary: "Bob".into(),
+            location: None,
+        };
+        assert!(e.to_ical().contains("RRULE:FREQ=YEARLY"));
+    }
+
+    #[test]
+    fn calendar_reminder_is_a_vtodo() {
+        let e = CalendarEntry {
+            kind: CalendarKind::Reminder,
+            start: "20260708T120000".into(),
+            end: None,
+            summary: "Call the bank".into(),
+            location: None,
+        };
+        assert!(e.to_ical().contains("BEGIN:VTODO"));
+    }
+
+    #[test]
+    fn sms_to_vmessage() {
+        let sms = Sms {
+            sender: "+391234".into(),
+            text: "hi\nthere".into(),
+        };
+        let vmg = sms.to_vmessage();
+        assert!(vmg.starts_with("BEGIN:VMSG"));
+        assert!(vmg.contains("TEL:+391234"));
+        assert!(vmg.contains("BEGIN:VBODY"));
+        // The embedded newline is escaped so the record stays single-block.
+        assert!(vmg.contains("hi\\nthere"));
+        assert!(vmg.trim_end().ends_with("END:VMSG"));
     }
 
     #[test]

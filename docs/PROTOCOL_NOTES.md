@@ -125,6 +125,7 @@ Anything from ~55 bytes upward works; sending more is harmless.
 | Send SMS | `0x02` | SMS submit block (SMSC + PDU) | Experimental | CONFIRMED (type); payload LIKELY |
 | Read SMS | `0x02` | `00 07 02 <loc> 01 64` | Experimental | CONFIRMED |
 | SMS folder ops | `0x14` | mark/delete variants | Experimental | CONFIRMED |
+| Read calendar note | `0x13` | `66 00 <loc_hi> <loc_lo>` | Experimental | LIKELY (type from gnokii; request/response bytes **unvalidated** — treat reply as raw until captured on hardware) |
 | Netmonitor | `0x40` | `7E <field>` (`00`=next, `F0`=reset, `F1`=off) | Confirmed | CONFIRMED |
 
 Memory types: `01` combined, `02` phone (ME), `03` SIM, `05` own, `07` dialled,

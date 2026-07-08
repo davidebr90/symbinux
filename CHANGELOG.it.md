@@ -10,6 +10,20 @@ e il progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 ## [Unreleased]
 
 ### Aggiunto
+- **Recupero read-only: modello calendario, export iCalendar/vMessage, `getcalendar`**:
+  a valle dello studio NSS, `symbinux-protocol::decode` acquisisce un modello
+  `CalendarEntry` con `to_ical()` (RFC 5545 VEVENT/VTODO, compleanni con
+  ricorrenza annuale) e `Sms::to_vmessage()` (`.vmg` IrMC/Nokia), accanto al
+  già presente `PhonebookEntry::to_vcard` — un unico livello di interscambio
+  portabile per i dati PIM recuperati indipendentemente dal trasporto (FBUS sui
+  feature phone, OBEX su Symbian). Un request builder read-only
+  `read_calendar_note` (message type `0x13`, taggato Sperimentale perché il
+  layout è LIKELY non CONFIRMED) e un comando CLI `getcalendar` inviano la
+  richiesta e mostrano la risposta grezza finché il layout di byte non è
+  catturato su hardware reale. Tutta la logica di export/builder è coperta da
+  unit test; il documento acquisisce una sezione Symbian-vs-feature-phone che
+  spiega perché il recupero su Symbian passa da OBEX/SyncML e non dal catalogo
+  FBUS.
 - **`docs/NOKIA_SERVICE_MODES.md`**: uno studio di Nemesis Service Suite (NSS)
   e dell'ecosistema di service-tool DCT4/BB5, distillato in ciò che è
   riutilizzabile clean-room per il **recupero dati in sola lettura** dai
