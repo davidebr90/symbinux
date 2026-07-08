@@ -75,7 +75,9 @@ impl UsbTransport {
                 .map(|c| c.configuration_value())
                 != Ok(cfg_value)
             {
-                let _ = device.set_configuration(cfg_value).wait();
+                if let Err(e) = device.set_configuration(cfg_value).wait() {
+                    log::warn!("usb {vid:04x}: could not select configuration {cfg_value}: {e}");
+                }
             }
 
             // Detach any kernel driver (cdc-acm/phonet on Linux) and claim.

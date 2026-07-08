@@ -147,6 +147,9 @@ pub fn exchange_fbus2_with<T: Transport>(
     }
 
     // Phase 2: collect the rest of the (possibly fragmented) reply.
+    // If the deadline expires here and no data frame has been collected,
+    // we still return Ok with whatever we have (ACKs only is valid for
+    // commands that have no data reply — the caller interprets the result).
     while Instant::now() < overall_deadline {
         let n = link.read(&mut scratch)?;
         if n > 0 {

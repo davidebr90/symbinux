@@ -115,7 +115,7 @@ fn apple_pid_matches(pid: u16) -> bool {
 /// 4. Nokia legacy by vendor id (FBUS/MBUS fallback).
 /// 5. Otherwise Unknown (candidate for raw-sniff inspection).
 pub fn classify(fp: &UsbFingerprint) -> DeviceKind {
-    if fp.vendor_id == APPLE_VID {
+    if fp.vendor_id == APPLE_VID && (has_usbmux_interface(fp) || apple_pid_matches(fp.product_id)) {
         return DeviceKind::AppleIos;
     }
 
@@ -131,7 +131,13 @@ pub fn classify(fp: &UsbFingerprint) -> DeviceKind {
         }
     }
     for iface in &fp.interfaces {
-        if iface.triple() == MTP_IFACE && iface.interface_string.as_deref() == Some("MTP") {
+        if iface.triple() == MTP_IFACE
+            && iface
+                .interface_string
+                .as_deref()
+                .map(|s| s.trim().eq_ignore_ascii_case("MTP"))
+                .unwrap_or(false)
+        {
             return DeviceKind::Android(AndroidMode::Mtp);
         }
         if iface.triple() == PTP_IFACE {

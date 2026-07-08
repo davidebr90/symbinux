@@ -27,7 +27,12 @@ fn gsm_default_char(septet: u8) -> char {
 /// Unpack `septets` GSM 7-bit packed characters (LSB-first, GSM 03.38 packing)
 /// from `packed` into a String. The bit unpacking is exact and unit-tested
 /// against the canonical "hello" = `E8 32 9B FD 06` vector.
+///
+/// Returns an empty string when `septets` is zero.
 pub fn gsm7_unpack(packed: &[u8], septets: usize) -> String {
+    if septets == 0 {
+        return String::new();
+    }
     let mut out = String::with_capacity(septets);
     let mut buffer: u32 = 0;
     let mut bits = 0u32;
@@ -89,6 +94,9 @@ pub fn hw_sw_version(frame: &Fbus2Frame) -> Option<HwSwVersion> {
     let start = frame.data.windows(2).position(|w| w == b"V ")?;
     let tail = &frame.data[start..];
     // The ASCII block ends at the first NUL (trailing framing bytes follow).
+    // from_utf8_lossy is safe here: the phone always replies in ASCII,
+    // so any non-UTF-8 byte means noise or corruption — replacing it
+    // with � is the right fallback rather than failing the decode.
     let end = tail.iter().position(|b| *b == 0x00).unwrap_or(tail.len());
     let text = String::from_utf8_lossy(&tail[..end]);
 
@@ -228,7 +236,7 @@ fn vmessage_escape(value: &str) -> String {
 
 /// Decode an SMS-DELIVER PDU (the format a phone stores received messages in).
 /// Handles the SMSC prefix, sender address (semi-octet + type-of-address), and
-/// 7-bit GSM or 8-bit user data. Returns `None` on a malformed/short PDU.
+/// 7-bit GSM, 8-bit or UCS2 user data. Returns `None` on a malformed/short PDU.
 pub fn decode_sms_deliver(pdu: &[u8]) -> Option<Sms> {
     let mut i = 0usize;
     // SMSC: length byte + that many octets.
@@ -261,8 +269,23 @@ pub fn decode_sms_deliver(pdu: &[u8]) -> Option<Sms> {
     i += 1;
     let ud = pdu.get(i..)?;
     let text = if dcs & 0x0C == 0x00 {
+        // GSM 7-bit default alphabet (bits 2-3 = 00).
         gsm7_unpack(ud, udl)
+    } else if dcs & 0x0C == 0x08 {
+        // UCS2 (bits 2-3 = 10): each pair of bytes is one big-endian
+        // code point.  Dropped trailing bytes (odd length) is safe: the
+        // phone always sends an even number of octets for UCS2.
+        let utf16: Vec<u16> = ud
+            .chunks(2)
+            .filter(|c| c.len() == 2)
+            .map(|c| u16::from_be_bytes([c[0], c[1]]))
+            .collect();
+        String::from_utf16(&utf16).unwrap_or_else(|_| {
+            // Lone surrogates or undecodable data — fall back to lossy.
+            String::from_utf8_lossy(ud).into_owned()
+        })
     } else {
+        // 8-bit data (bits 2-3 = 01), or reserved (bits 2-3 = 11).
         String::from_utf8_lossy(ud).into_owned()
     };
     Some(Sms { sender, text })
@@ -275,6 +298,24 @@ mod tests {
     #[test]
     fn gsm7_unpacks_hello() {
         assert_eq!(gsm7_unpack(&[0xE8, 0x32, 0x9B, 0xFD, 0x06], 5), "hello");
+    }
+
+    #[test]
+    fn decodes_ucs2_sms_deliver() {
+        // SMS-DELIVER, sender +1234, DCS 0x08 (UCS2), user data "Hé"
+        // (U+0048 U+00E9), UDL = 4 octets.
+        let pdu = [
+            0x00, 0x04, 0x04, 0x91, 0x21, 0x43, 0x00, 0x08, 0x22, 0x70, 0x60, 0x21, 0x22, 0x74,
+            0x00, 0x04, 0x00, 0x48, 0x00, 0xE9,
+        ];
+        let sms = decode_sms_deliver(&pdu).expect("decoded");
+        assert_eq!(sms.sender, "+1234");
+        assert_eq!(sms.text, "Hé");
+    }
+
+    #[test]
+    fn gsm7_unpack_zero_septets_is_empty() {
+        assert_eq!(gsm7_unpack(&[0xFF, 0xFF], 0), "");
     }
 
     #[test]

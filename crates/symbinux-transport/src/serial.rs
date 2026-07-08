@@ -33,8 +33,12 @@ impl SerialTransport {
             })?;
 
         // Cable power/control lines expected by FBUS: DTR asserted, RTS cleared.
-        let _ = port.write_data_terminal_ready(true);
-        let _ = port.write_request_to_send(false);
+        if let Err(e) = port.write_data_terminal_ready(true) {
+            log::warn!("{path}: could not set DTR: {e}");
+        }
+        if let Err(e) = port.write_request_to_send(false) {
+            log::warn!("{path}: could not clear RTS: {e}");
+        }
 
         Ok(Self { port })
     }
