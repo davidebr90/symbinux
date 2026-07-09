@@ -7,10 +7,12 @@
 
 *[Read this document in English](README.md)*
 
-Comunica con i telefoni Nokia legacy da un desktop GNU/Linux moderno. Symbinux è
-un'implementazione clean-room dei protocolli seriali Nokia **FBUS/MBUS** su USB
-(oggi via cavo seriale; USB raw/BB5 in roadmap), distribuita come core + CLI in
-Rust con una GUI GTK4/libadwaita.
+Comunica con i telefoni Nokia legacy da un desktop moderno Linux, Windows o
+macOS. Symbinux è un'implementazione clean-room dei protocolli seriali Nokia
+**FBUS/MBUS** su USB (oggi via cavo seriale; USB raw/BB5 in roadmap), distribuita
+come core + CLI in Rust con una **GUI GTK4 (`gtk4-rs`) cross-platform**. Una GUI
+libadwaita in Python resta usabile finché la GUI Rust non la sostituisce del
+tutto.
 
 **Symbinux è un fork dichiarato di [Nokinux](https://launchpad.net/nokinux)**
 (2008-2010), progetto Bash/Python nato nella comunità Ubuntu italiana per
@@ -28,31 +30,48 @@ binario proprietario Nokia**.
 - **Rubrica** in lettura (e scrittura sperimentale) su memoria ME/SIM.
 - **Netmonitor** per diagnostica di rete.
 - **SMS** lettura/invio (sperimentale).
+- **Rilevamento wireless** — scansione Bluetooth e Wi-Fi, più scaricamento
+  contatti PBAP via Bluetooth su Linux, dietro un'unica API portabile
+  `symbinux-wireless` (BLE su Windows/macOS via `btleplug`, stati "non
+  disponibile" onesti altrove).
+- **Classificazione dispositivi** — i dispositivi Bluetooth rilevati sono
+  etichettati per produttore e forma (orologio Apple, telefono Android, TV,
+  cuffie…) da segnali di identificazione vanilla, mostrati come badge combinati.
+- **Recupero / export dati** — rubrica, messaggi e calendario recuperati si
+  normalizzano in record portabili **vCard / vMessage / iCalendar**
+  indipendentemente dal trasporto.
 - **Inventario dispositivi avanzato** — vista in stile lsusb di tutto ciò che è
   collegato (VID:PID, nomi estesi, classificazione) per il debug del
   riconoscimento.
 - **Modalità frame raw** per il reverse engineering del protocollo.
 
-Vedi [docs/FUNCTIONS.md](docs/FUNCTIONS.md) per il riferimento completo e le
-classi di sicurezza.
+Vedi [docs/FUNCTIONS.md](docs/FUNCTIONS.md) per il riferimento CLI completo e le
+classi di sicurezza, e [docs/NOKIA_SERVICE_MODES.md](docs/NOKIA_SERVICE_MODES.md)
+/ [docs/VANILLA_CONNECTIVITY.md](docs/VANILLA_CONNECTIVITY.md) per come si
+raggiunge il telefono senza alcun software installato su di esso.
 
 ## Architettura
 
 ```
 symbinux/
 ├── crates/                     # workspace Rust (il core)
-│   ├── symbinux-protocol/      # framing FBUS/MBUS — puro, senza I/O, testato
+│   ├── symbinux-protocol/      # framing FBUS/MBUS + decoder/export tipizzati — puro, senza I/O, testato
 │   ├── symbinux-transport/     # seriale (termios) + USB raw (nusb, Rust puro), enumerazione
-│   └── symbinux-cli/           # `symbinux-fbus`, CLI in stile gnokii
-├── src/symbinux/               # GUI GTK4 + libadwaita (Python), chiama la CLI
+│   ├── symbinux-devices/       # fingerprinting USB + dispatch per piattaforma
+│   ├── symbinux-wireless/      # Bluetooth/Wi-Fi/PBAP/notifiche portabili
+│   ├── symbinux-cli/           # `symbinux-fbus`, CLI in stile gnokii
+│   └── symbinux-gui/           # GUI desktop gtk4-rs — linka il core direttamente
+├── src/symbinux/               # GUI legacy GTK4 + libadwaita (Python), invoca la CLI
 ├── udev/                       # regole per accesso non privilegiato
 ├── data/devices.json           # tabella VID/PID nota (mantenuta dalla community)
-├── docs/                       # PROTOCOL_NOTES / FUNCTIONS / ROADMAP / SETUP
-└── packaging/flatpak/          # manifest Flatpak
+├── docs/                       # PROTOCOL_NOTES / FUNCTIONS / ROADMAP / SETUP / …
+└── packaging/                  # flatpak/ (Linux) + windows/ (installer)
 ```
 
-I livelli sono nettamente separati: framing (no I/O) → trasporto (I/O) → CLI →
-GUI. La GUI non contiene logica di protocollo; invoca `symbinux-fbus`.
+I livelli sono nettamente separati: framing (no I/O) → trasporto (I/O) → CLI /
+GUI. La GUI Rust (`symbinux-gui`) **linka i crate del core direttamente** —
+nessun bridge a sottoprocesso; la GUI Python legacy non contiene logica di
+protocollo e invoca `symbinux-fbus`.
 
 ## Avvio rapido
 
